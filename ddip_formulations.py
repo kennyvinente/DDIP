@@ -192,6 +192,8 @@ def uct_model(model,svars,ite,nblocks,t0):
         else:
             model.addConstr(zv[i] == sum(svars['tv'][ite][i,t0+1-int(df_term['UPTIME'][i]):t0-1]), name='zv[%d]'%i)
 
+    print('ajeitar esta parte aqui')
+
     for i in range(NG):
         for j in range(t0,t0+nblocks):
             if df_term['TON'][i] > 0:
