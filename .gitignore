@@ -1,5 +1,7 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
+venv/
+.idea/
 *.py[cod]
 *$py.class
 
@@ -127,3 +129,16 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+/teste.lp
+/teste_new.lp
+/buildnetworkDC.py
+/ddip_ex2.py
+/ddip_ex3.py
+/gen_hpf.py
+/m1b_formulations.py
+/m1b_main.py
+/m1b_options.py
+/model_py.lp
+/options.py
+/results/
+/temp104.py
