@@ -228,7 +228,7 @@ print("Iteration: %d, Current UB = %.2f, Best UB = %.2f, Current LB = %.2f, cur_
 
 # Backward sweep for first iteration ended
 
-maxiter = 25
+maxiter = 5
 
 #################  Iterations 2,3,... start  ###################
 while best_gap >= tolerance and j < maxiter:

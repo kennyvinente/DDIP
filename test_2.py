@@ -1,10 +1,14 @@
 
+
+
+
+#### log: it's working the uptime constraint in DDP
 from numpy import array, zeros, append
 import pandas as pd
 from gurobipy import *
 
 ntypes = 4
-nperiods = 5
+nperiods = 12
 
 CVU = array([9.95,10.2,11,11])
 CF = array([300,210,120,120])
@@ -181,17 +185,13 @@ def UC_model_1block(period,svars,MILP_LP):
     # else:
     #     m.addConstr(quicksum(aux_tv[l] for l in aux_tv) + v[0] <= u[0])
 
-    aux_tv = m.addVars(period-1, name='aux_v', ub=1)
 
-    for l in range(period-1):
-        m.addConstr(aux_tv[l] == svars['tv'][ite][0,l+1], name='ztv%d%d'%(period,l))
-    m.addConstr(quicksum(aux_tv[i] for i in aux_tv) + v[0] <= u[0])
 
-    # aux_tv = m.addVars(int(upt[0]-1), name='aux_v', ub=1)
-    # for l in range(upt[0]-1,0,-1):
-    #     m.addConstr(aux_tv[l-1] == (svars['tv'][ite][0,l-upt[0]+period] if l-upt[0]+period >= 0 else 0), name='ztv%d%d'%(period,l-1))
+    aux_tv = m.addVars(int(upt[0]-1), name='aux_v', ub=1)
+    for l in range(upt[0]-1,0,-1):
+        m.addConstr(aux_tv[l-1] == (svars['tv'][ite][0,l-upt[0]+period] if l-upt[0]+period >= 0 else 0), name='ztv%d%d'%(period,l-1))
 
-    # m.addConstr(quicksum(aux_tv[i] for i in range(upt[0]-1)) + v[0] <= u[0])
+    m.addConstr(quicksum(aux_tv[i] for i in range(upt[0]-1)) + v[0] <= u[0])
 
     # z_vol = m.addVars(1,name='z_vol')
 
@@ -348,62 +348,62 @@ mu['vol'][ite][nperiods+1] = zeros(1);
 for period in range(nperiods,0,-1):
     m_b[period] = UC_model_1block(period,svars,0);
 
-    if 1 <= period <= nperiods-1:
-        f1,f2 = 0,0
-        for i in range(ntypes):
-            f1 += mu['tu'][ite][period+1][i]*(m_f[period]._u[i] - svars['tu'][ite][i,period])
-        for l in range(period):
-            if l == period-1:
-                f2 += mu['tv'][ite][0][l-1,period+1]*(m_f[period]._v[0] - svars['tv'][ite][0,l])
-            else:
-                f2 += mu['tv'][ite][0][l-1,period+1]*(m_f[period]._aux_v[l] - svars['tv'][ite][0,l])
-        m_f[period].addConstr(m_f[period]._Theta >= obj[ite,period+1] + f1 + f2) # Cut added to forward problem
-        f1,f2= 0,0
-        for i in range(ntypes):
-            f1 += mu['tu'][ite][period+1][i]*(m_b[period]._u[i] - svars['tu'][ite][i,period])
-        for l in range(period):
-            if l == period-1:
-                f2 += mu['tv'][ite][0][l-1,period+1]*(m_b[period]._v[0] - svars['tv'][ite][0,l])
-            else:
-                f2 += mu['tv'][ite][0][l-1,period+1]*(m_b[period]._aux_v[l] - svars['tv'][ite][0,l])
-        m_b[period].addConstr(m_b[period]._Theta >= obj[ite,period+1] + f1 + f2) # # Cut added to backward problem
-
     # if 1 <= period <= nperiods-1:
-    #     f1,f2,f3 = 0,0,0
+    #     f1,f2 = 0,0
     #     for i in range(ntypes):
     #         f1 += mu['tu'][ite][period+1][i]*(m_f[period]._u[i] - svars['tu'][ite][i,period])
-    #     for l in range(upt[0]-1,0,-1):
-    #         if l-upt[0]+period < 0:
-    #             break
-    #         if l == upt[0]-1:
-    #             f2 += mu['tv'][ite][0][l-1,period+1]*(m_f[period]._v[0] - svars['tv'][ite][0,period])
+    #     for l in range(period):
+    #         if l == period-1:
+    #             f2 += mu['tv'][ite][0][l-1,period+1]*(m_f[period]._v[0] - svars['tv'][ite][0,l])
     #         else:
-    #             f2 += mu['tv'][ite][0][l-1,period+1]*(m_f[period]._aux_v[l] - svars['tv'][ite][0,l-upt[0]+period])
-    #     m_f[period].addConstr(m_f[period]._Theta >= obj[ite,period+1] + f1 + f2 + f3) # Cut added to forward problem
-    #     f1,f2,f3 = 0,0,0
+    #             f2 += mu['tv'][ite][0][l-1,period+1]*(m_f[period]._aux_v[l] - svars['tv'][ite][0,l])
+    #     m_f[period].addConstr(m_f[period]._Theta >= obj[ite,period+1] + f1 + f2) # Cut added to forward problem
+    #     f1,f2= 0,0
     #     for i in range(ntypes):
     #         f1 += mu['tu'][ite][period+1][i]*(m_b[period]._u[i] - svars['tu'][ite][i,period])
-    #     for l in range(upt[0]-1,0,-1):
-    #         if l-upt[0]+period < 0:
-    #             break
-    #         if l == upt[0]-1:
-    #             f2 += mu['tv'][ite][0][l-1,period+1]*(m_b[period]._v[0] - svars['tv'][ite][0,period])
+    #     for l in range(period):
+    #         if l == period-1:
+    #             f2 += mu['tv'][ite][0][l-1,period+1]*(m_b[period]._v[0] - svars['tv'][ite][0,l])
     #         else:
-    #             f2 += mu['tv'][ite][0][l-1,period+1]*(m_b[period]._aux_v[l] - svars['tv'][ite][0,l-upt[0]+period])
-    #     m_b[period].addConstr(m_b[period]._Theta >= obj[ite,period+1] + f1 + f2 + f3) # # Cut added to backward problem
+    #             f2 += mu['tv'][ite][0][l-1,period+1]*(m_b[period]._aux_v[l] - svars['tv'][ite][0,l])
+    #     m_b[period].addConstr(m_b[period]._Theta >= obj[ite,period+1] + f1 + f2) # # Cut added to backward problem
+
+    if 1 <= period <= nperiods-1:
+        f1,f2,f3 = 0,0,0
+        for i in range(ntypes):
+            f1 += mu['tu'][ite][period+1][i]*(m_f[period]._u[i] - svars['tu'][ite][i,period])
+        for l in range(upt[0]-1,0,-1):
+            if l-upt[0]+period < 0:
+                break
+            if l == upt[0]-1:
+                f2 += mu['tv'][ite][0][l-1,period+1]*(m_f[period]._v[0] - svars['tv'][ite][0,period])
+            else:
+                f2 += mu['tv'][ite][0][l-1,period+1]*(m_f[period]._aux_v[l] - svars['tv'][ite][0,l-upt[0]+period+1])
+        m_f[period].addConstr(m_f[period]._Theta >= obj[ite,period+1] + f1 + f2 + f3) # Cut added to forward problem
+        f1,f2,f3 = 0,0,0
+        for i in range(ntypes):
+            f1 += mu['tu'][ite][period+1][i]*(m_b[period]._u[i] - svars['tu'][ite][i,period])
+        for l in range(upt[0]-1,0,-1):
+            if l-upt[0]+period < 0:
+                break
+            if l == upt[0]-1:
+                f2 += mu['tv'][ite][0][l-1,period+1]*(m_b[period]._v[0] - svars['tv'][ite][0,period])
+            else:
+                f2 += mu['tv'][ite][0][l-1,period+1]*(m_b[period]._aux_v[l] - svars['tv'][ite][0,l-upt[0]+period+1])
+        m_b[period].addConstr(m_b[period]._Theta >= obj[ite,period+1] + f1 + f2 + f3) # # Cut added to backward problem
 
     m_b[period].optimize();
     m_b[period].write('model_py_%d.lp'%(period))
 
-    if period > 1:
-        mu['tu'][ite][period] = array([m_b[period].getConstrByName("ztu%d"%i).pi for i in range(ntypes)])
-        for l in range(period-1):
-            mu['tv'][ite][0][l,period] = m_b[period].getConstrByName("ztv%d%d"%(period,l)).pi
-
     # if period > 1:
     #     mu['tu'][ite][period] = array([m_b[period].getConstrByName("ztu%d"%i).pi for i in range(ntypes)])
-    #     for l in range(upt[0]-1,0,-1):
-    #         mu['tv'][ite][0][l-1,period] = m_b[period].getConstrByName("ztv%d%d"%(period,l-1)).pi
+    #     for l in range(period-1):
+    #         mu['tv'][ite][0][l,period] = m_b[period].getConstrByName("ztv%d%d"%(period,l)).pi
+
+    if period > 1:
+        mu['tu'][ite][period] = array([m_b[period].getConstrByName("ztu%d"%i).pi for i in range(ntypes)])
+        for l in range(upt[0]-1,0,-1):
+            mu['tv'][ite][0][l-1,period] = m_b[period].getConstrByName("ztv%d%d"%(period,l-1)).pi
 
 
     obj[ite,period] = m_b[period].objval
@@ -425,7 +425,7 @@ print("Iteration: %d, Current UB = %.2f, Best UB = %.2f, Current LB = %.2f, cur_
 
 # Backward sweep for first iteration ended
 
-maxiter = 0; # Maximum number of DDIP iterations
+maxiter = 10; # Maximum number of DDIP iterations
 tolerance = 1e-8; # Percentage tolerance stopping criteria
 
 
@@ -488,7 +488,7 @@ while best_gap >= tolerance and ite < maxiter:
                 if l == upt[0]-1:
                     f2 += mu['tv'][ite][0][l-1,period+1]*(m_f[period]._v[0] - svars['tv'][ite][0,period])
                 else:
-                    f2 += mu['tv'][ite][0][l-1,period+1]*(m_f[period]._aux_v[l] - svars['tv'][ite][0,l-upt[0]+period])
+                    f2 += mu['tv'][ite][0][l-1,period+1]*(m_f[period]._aux_v[l] - svars['tv'][ite][0,l-upt[0]+period+1])
             m_f[period].addConstr(m_f[period]._Theta >= obj[ite,period+1] + f1 + f2 + f3) # Cut added to forward problem
             f1,f2,f3 = 0,0,0
             for i in range(ntypes):
@@ -499,7 +499,7 @@ while best_gap >= tolerance and ite < maxiter:
                 if l == upt[0]-1:
                     f2 += mu['tv'][ite][0][l-1,period+1]*(m_b[period]._v[0] - svars['tv'][ite][0,period])
                 else:
-                    f2 += mu['tv'][ite][0][l-1,period+1]*(m_b[period]._aux_v[l] - svars['tv'][ite][0,l-upt[0]+period])
+                    f2 += mu['tv'][ite][0][l-1,period+1]*(m_b[period]._aux_v[l] - svars['tv'][ite][0,l-upt[0]+period+1])
             m_b[period].addConstr(m_b[period]._Theta >= obj[ite,period+1] + f1 + f2 + f3) # # Cut added to backward problem
 
         m_b[period].optimize();

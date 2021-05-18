@@ -4,7 +4,7 @@
 
 from ddip_formulations import *
 
-NT = 3
+NT = 24
 nblocks = 1
 
 MIPGap = True
@@ -18,7 +18,7 @@ def UC_model_1block(nblocks,svars,ite,t0,MILP_LP):
         fph_model(m,nblocks,1)
         term_model(m,nblocks,1)
         if MIPGap:
-            m.setParam('MIPGAP',0.001)
+            m.setParam('MIPGAP',0.00001)
     else:
         fph_model(m,nblocks,0)
         term_model(m,nblocks,0)
@@ -133,74 +133,74 @@ for i in range(NH):
 for period in range(NT,0,-1):
     m_b[period] = UC_model_1block(nblocks,svars,ite,period,0)
 
-    # if 1 <= period <= NT-1:
-    #     f1,f2,f3,f4,f5,f6 = 0,0,0,0,0,0
-    #     for i in range(NG):
-    #         f1 += mu['tu'][ite][period+1][i]*(m_f[period]._tu[i,0] - svars['tu'][ite][i,period])
-    #         if df_term['UPTIME'][i] > 1:
-    #             for l in range(df_term['UPTIME'][i]-1,0,-1):
-    #                 if l - df_term['UPTIME'][i] + period < 0:
-    #                     break
-    #                 if l == df_term['UPTIME'][i] - 1:
-    #                     f2 += mu['tv'][ite][i][l-1,period+1]*(m_f[period]._tv[i,0] - svars['tv'][ite][i,period])
-    #                 else:
-    #                     f2 += mu['tv'][ite][i][l-1,period+1]*(m_f[period]._aux_tv[i,period][l] - svars['tv'][ite][i,l-df_term['UPTIME'][i]+period+1])
-    #         if df_term['DOWNTIME'][i] > 1:
-    #             for l in range(df_term['DOWNTIME'][i]-1,0,-1):
-    #                 if l - df_term['DOWNTIME'][i] + period < 0:
-    #                     break
-    #                 if l == df_term['DOWNTIME'][i] - 1:
-    #                     f3 += mu['tw'][ite][i][l-1,period+1]*(m_f[period]._tw[i,0] - svars['tw'][ite][i,period])
-    #                 else:
-    #                     f3 += mu['tw'][ite][i][l-1,period+1]*(m_f[period]._aux_tw[i,period][l] - svars['tw'][ite][i,l-df_term['DOWNTIME'][i]+period+1])
-    #         f4 += mu['gt'][ite][period+1][i]*(m_f[period]._gt[i,0] - svars['gt'][ite][i,period])
-    #     for i in range(NH):
-    #         f5 += mu['vol'][ite][period+1][i]*(m_f[period]._vol[i,0] - svars['vol'][ite][i,period])
-    #         if df_hidr['TRAVELTIME'][i] > 0:
-    #             for l in range(df_hidr['TRAVELTIME'][i],0,-1):
-    #                 if l-df_hidr['TRAVELTIME'][i]+period-1 < 0:
-    #                     break
-    #                 if l == df_hidr['TRAVELTIME'][i]:
-    #                     f6 += mu['turb'][ite][i][l-1,period+1]*(m_f[period]._turb[i,0] - svars['turb'][ite][i,period])
-    #                     f6 += mu['vert'][ite][i][l-1,period+1]*(m_f[period]._vert[i,0] - svars['vert'][ite][i,period])
-    #                 else:
-    #                     f6 += mu['turb'][ite][i][l-1,period+1]*(m_f[period]._aux_turb[i,period][l] - svars['turb'][ite][i,l-df_hidr['TRAVELTIME'][i]+period])
-    #                     f6 += mu['vert'][ite][i][l-1,period+1]*(m_f[period]._aux_vert[i,period][l] - svars['vert'][ite][i,l-df_hidr['TRAVELTIME'][i]+period])
-    #     m_f[period].addConstr(m_f[period]._Theta[0] >= obj[ite,period+1] + f1 + f2 + f3 + f4 + f5 + f6) # Cut added to forward problem
-    #
-    #     f1,f2,f3,f4,f5,f6 = 0,0,0,0,0,0
-    #     for i in range(NG):
-    #         f1 += mu['tu'][ite][period+1][i]*(m_b[period]._tu[i,0] - svars['tu'][ite][i,period])
-    #         if df_term['UPTIME'][i] > 1:
-    #             for l in range(df_term['UPTIME'][i]-1,0,-1):
-    #                 if l - df_term['UPTIME'][i] + period < 0:
-    #                     break
-    #                 if l == df_term['UPTIME'][i] - 1:
-    #                     f2 += mu['tv'][ite][i][l-1,period+1]*(m_b[period]._tv[i,0] - svars['tv'][ite][i,period])
-    #                 else:
-    #                     f2 += mu['tv'][ite][i][l-1,period+1]*(m_b[period]._aux_tv[i,period][l] - svars['tv'][ite][i,l-df_term['UPTIME'][i]+period+1])
-    #         if df_term['DOWNTIME'][i] > 1:
-    #             for l in range(df_term['DOWNTIME'][i]-1,0,-1):
-    #                 if l - df_term['DOWNTIME'][i] + period < 0:
-    #                     break
-    #                 if l == df_term['DOWNTIME'][i] - 1:
-    #                     f3 += mu['tw'][ite][i][l-1,period+1]*(m_b[period]._tw[i,0] - svars['tw'][ite][i,period])
-    #                 else:
-    #                     f3 += mu['tw'][ite][i][l-1,period+1]*(m_b[period]._aux_tw[i,period][l] - svars['tw'][ite][i,l-df_term['DOWNTIME'][i]+period+1])
-    #         f4 += mu['gt'][ite][period+1][i]*(m_b[period]._gt[i,0] - svars['gt'][ite][i,period])
-    #     for i in range(NH):
-    #         f5 += mu['vol'][ite][period+1][i]*(m_b[period]._vol[i,0] - svars['vol'][ite][i,period])
-    #         if df_hidr['TRAVELTIME'][i] > 0:
-    #             for l in range(df_hidr['TRAVELTIME'][i],0,-1):
-    #                 if l-df_hidr['TRAVELTIME'][i]+period-1 < 0:
-    #                     break
-    #                 if l == df_hidr['TRAVELTIME'][i]:
-    #                     f6 += mu['turb'][ite][i][l-1,period+1]*(m_b[period]._turb[i,0] - svars['turb'][ite][i,period])
-    #                     f6 += mu['vert'][ite][i][l-1,period+1]*(m_b[period]._vert[i,0] - svars['vert'][ite][i,period])
-    #                 else:
-    #                     f6 += mu['turb'][ite][i][l-1,period+1]*(m_b[period]._aux_turb[i,period][l] - svars['turb'][ite][i,l-df_hidr['TRAVELTIME'][i]+period])
-    #                     f6 += mu['vert'][ite][i][l-1,period+1]*(m_b[period]._aux_vert[i,period][l] - svars['vert'][ite][i,l-df_hidr['TRAVELTIME'][i]+period])
-    #     m_b[period].addConstr(m_b[period]._Theta[0] >= obj[ite,period+1] + f1 + f2 + f3 + f4 + f5 + f6) # Cut added to backward problem
+    if 1 <= period <= NT-1:
+        f1,f2,f3,f4,f5,f6 = 0,0,0,0,0,0
+        for i in range(NG):
+            f1 += mu['tu'][ite][period+1][i]*(m_f[period]._tu[i,0] - svars['tu'][ite][i,period])
+            if df_term['UPTIME'][i] > 1:
+                for l in range(df_term['UPTIME'][i]-1,0,-1):
+                    if l - df_term['UPTIME'][i] + period < 0:
+                        break
+                    if l == df_term['UPTIME'][i] - 1:
+                        f2 += mu['tv'][ite][i][l-1,period+1]*(m_f[period]._tv[i,0] - svars['tv'][ite][i,period])
+                    else:
+                        f2 += mu['tv'][ite][i][l-1,period+1]*(m_f[period]._aux_tv[i,period][l] - svars['tv'][ite][i,l-df_term['UPTIME'][i]+period+1])
+            if df_term['DOWNTIME'][i] > 1:
+                for l in range(df_term['DOWNTIME'][i]-1,0,-1):
+                    if l - df_term['DOWNTIME'][i] + period < 0:
+                        break
+                    if l == df_term['DOWNTIME'][i] - 1:
+                        f3 += mu['tw'][ite][i][l-1,period+1]*(m_f[period]._tw[i,0] - svars['tw'][ite][i,period])
+                    else:
+                        f3 += mu['tw'][ite][i][l-1,period+1]*(m_f[period]._aux_tw[i,period][l] - svars['tw'][ite][i,l-df_term['DOWNTIME'][i]+period+1])
+            f4 += mu['gt'][ite][period+1][i]*(m_f[period]._gt[i,0] - svars['gt'][ite][i,period])
+        for i in range(NH):
+            f5 += mu['vol'][ite][period+1][i]*(m_f[period]._vol[i,0] - svars['vol'][ite][i,period])
+            if df_hidr['TRAVELTIME'][i] > 0:
+                for l in range(df_hidr['TRAVELTIME'][i],0,-1):
+                    if l-df_hidr['TRAVELTIME'][i]+period-1 < 0:
+                        break
+                    if l == df_hidr['TRAVELTIME'][i]:
+                        f6 += mu['turb'][ite][i][l-1,period+1]*(m_f[period]._turb[i,0] - svars['turb'][ite][i,period])
+                        f6 += mu['vert'][ite][i][l-1,period+1]*(m_f[period]._vert[i,0] - svars['vert'][ite][i,period])
+                    else:
+                        f6 += mu['turb'][ite][i][l-1,period+1]*(m_f[period]._aux_turb[i,period][l] - svars['turb'][ite][i,l-df_hidr['TRAVELTIME'][i]+period])
+                        f6 += mu['vert'][ite][i][l-1,period+1]*(m_f[period]._aux_vert[i,period][l] - svars['vert'][ite][i,l-df_hidr['TRAVELTIME'][i]+period])
+        m_f[period].addConstr(m_f[period]._Theta[0] >= obj[ite,period+1] + f1 + f2 + f3 + f4 + f5 + f6) # Cut added to forward problem
+
+        f1,f2,f3,f4,f5,f6 = 0,0,0,0,0,0
+        for i in range(NG):
+            f1 += mu['tu'][ite][period+1][i]*(m_b[period]._tu[i,0] - svars['tu'][ite][i,period])
+            if df_term['UPTIME'][i] > 1:
+                for l in range(df_term['UPTIME'][i]-1,0,-1):
+                    if l - df_term['UPTIME'][i] + period < 0:
+                        break
+                    if l == df_term['UPTIME'][i] - 1:
+                        f2 += mu['tv'][ite][i][l-1,period+1]*(m_b[period]._tv[i,0] - svars['tv'][ite][i,period])
+                    else:
+                        f2 += mu['tv'][ite][i][l-1,period+1]*(m_b[period]._aux_tv[i,period][l] - svars['tv'][ite][i,l-df_term['UPTIME'][i]+period+1])
+            if df_term['DOWNTIME'][i] > 1:
+                for l in range(df_term['DOWNTIME'][i]-1,0,-1):
+                    if l - df_term['DOWNTIME'][i] + period < 0:
+                        break
+                    if l == df_term['DOWNTIME'][i] - 1:
+                        f3 += mu['tw'][ite][i][l-1,period+1]*(m_b[period]._tw[i,0] - svars['tw'][ite][i,period])
+                    else:
+                        f3 += mu['tw'][ite][i][l-1,period+1]*(m_b[period]._aux_tw[i,period][l] - svars['tw'][ite][i,l-df_term['DOWNTIME'][i]+period+1])
+            f4 += mu['gt'][ite][period+1][i]*(m_b[period]._gt[i,0] - svars['gt'][ite][i,period])
+        for i in range(NH):
+            f5 += mu['vol'][ite][period+1][i]*(m_b[period]._vol[i,0] - svars['vol'][ite][i,period])
+            if df_hidr['TRAVELTIME'][i] > 0:
+                for l in range(df_hidr['TRAVELTIME'][i],0,-1):
+                    if l-df_hidr['TRAVELTIME'][i]+period-1 < 0:
+                        break
+                    if l == df_hidr['TRAVELTIME'][i]:
+                        f6 += mu['turb'][ite][i][l-1,period+1]*(m_b[period]._turb[i,0] - svars['turb'][ite][i,period])
+                        f6 += mu['vert'][ite][i][l-1,period+1]*(m_b[period]._vert[i,0] - svars['vert'][ite][i,period])
+                    else:
+                        f6 += mu['turb'][ite][i][l-1,period+1]*(m_b[period]._aux_turb[i,period][l] - svars['turb'][ite][i,l-df_hidr['TRAVELTIME'][i]+period])
+                        f6 += mu['vert'][ite][i][l-1,period+1]*(m_b[period]._aux_vert[i,period][l] - svars['vert'][ite][i,l-df_hidr['TRAVELTIME'][i]+period])
+        m_b[period].addConstr(m_b[period]._Theta[0] >= obj[ite,period+1] + f1 + f2 + f3 + f4 + f5 + f6) # Cut added to backward problem
 
 
     et = time.time()
@@ -281,78 +281,6 @@ while best_gap >= tolerance and ite < maxiter:
                 svars['tw'][ite][i][0] = 0
     svars['gt'][ite][:,0] = df_term['P0'].to_numpy()
 
-    # # # # # cuts added after each forward and backward
-    # # # # # insert cuts here
-    for period in range(1,NT):
-        f1,f2,f3,f4,f5,f6 = 0,0,0,0,0,0
-        for i in range(NG):
-            f1 += mu['tu'][ite-1][period+1][i]*(m_f[period]._tu[i,0] - svars['tu'][ite-1][i,period])
-            if df_term['UPTIME'][i] > 1:
-                for l in range(df_term['UPTIME'][i]-1,0,-1):
-                    if l - df_term['UPTIME'][i] + period < 0:
-                        break
-                    if l == df_term['UPTIME'][i] - 1:
-                        f2 += mu['tv'][ite-1][i][l-1,period+1]*(m_f[period]._tv[i,0] - svars['tv'][ite-1][i,period])
-                    else:
-                        f2 += mu['tv'][ite-1][i][l-1,period+1]*(m_f[period]._aux_tv[i,period][l] - svars['tv'][ite-1][i,l-df_term['UPTIME'][i]+period+1])
-            if df_term['DOWNTIME'][i] > 1:
-                for l in range(df_term['DOWNTIME'][i]-1,0,-1):
-                    if l - df_term['DOWNTIME'][i] + period < 0:
-                        break
-                    if l == df_term['DOWNTIME'][i] - 1:
-                        f3 += mu['tw'][ite-1][i][l-1,period+1]*(m_f[period]._tw[i,0] - svars['tw'][ite-1][i,period])
-                    else:
-                        f3 += mu['tw'][ite-1][i][l-1,period+1]*(m_f[period]._aux_tw[i,period][l] - svars['tw'][ite-1][i,l-df_term['DOWNTIME'][i]+period+1])
-            f4 += mu['gt'][ite-1][period+1][i]*(m_f[period]._gt[i,0] - svars['gt'][ite-1][i,period])
-        for i in range(NH):
-            f5 += mu['vol'][ite-1][period+1][i]*(m_f[period]._vol[i,0] - svars['vol'][ite-1][i,period])
-            if df_hidr['TRAVELTIME'][i] > 0:
-                for l in range(df_hidr['TRAVELTIME'][i],0,-1):
-                    if l-df_hidr['TRAVELTIME'][i]+period-1 < 0:
-                        break
-                    if l == df_hidr['TRAVELTIME'][i]:
-                        f6 += mu['turb'][ite-1][i][l-1,period+1]*(m_f[period]._turb[i,0] - svars['turb'][ite-1][i,period])
-                        f6 += mu['vert'][ite-1][i][l-1,period+1]*(m_f[period]._vert[i,0] - svars['vert'][ite-1][i,period])
-                    else:
-                        f6 += mu['turb'][ite-1][i][l-1,period+1]*(m_f[period]._aux_turb[i,period][l] - svars['turb'][ite-1][i,l-df_hidr['TRAVELTIME'][i]+period])
-                        f6 += mu['vert'][ite-1][i][l-1,period+1]*(m_f[period]._aux_vert[i,period][l] - svars['vert'][ite-1][i,l-df_hidr['TRAVELTIME'][i]+period])
-        m_f[period].addConstr(m_f[period]._Theta[0] >= obj[ite-1,period+1] + f1 + f2 + f3 + f4 + f5 + f6) # Cut added to forward problem
-
-        f1,f2,f3,f4,f5,f6 = 0,0,0,0,0,0
-        for i in range(NG):
-            f1 += mu['tu'][ite-1][period+1][i]*(m_b[period]._tu[i,0] - svars['tu'][ite-1][i,period])
-            if df_term['UPTIME'][i] > 1:
-                for l in range(df_term['UPTIME'][i]-1,0,-1):
-                    if l - df_term['UPTIME'][i] + period < 0:
-                        break
-                    if l == df_term['UPTIME'][i] - 1:
-                        f2 += mu['tv'][ite-1][i][l-1,period+1]*(m_b[period]._tv[i,0] - svars['tv'][ite-1][i,period])
-                    else:
-                        f2 += mu['tv'][ite-1][i][l-1,period+1]*(m_b[period]._aux_tv[i,period][l] - svars['tv'][ite-1][i,l-df_term['UPTIME'][i]+period+1])
-            if df_term['DOWNTIME'][i] > 1:
-                for l in range(df_term['DOWNTIME'][i]-1,0,-1):
-                    if l - df_term['DOWNTIME'][i] + period < 0:
-                        break
-                    if l == df_term['DOWNTIME'][i] - 1:
-                        f3 += mu['tw'][ite-1][i][l-1,period+1]*(m_b[period]._tw[i,0] - svars['tw'][ite-1][i,period])
-                    else:
-                        f3 += mu['tw'][ite-1][i][l-1,period+1]*(m_b[period]._aux_tw[i,period][l] - svars['tw'][ite-1][i,l-df_term['DOWNTIME'][i]+period+1])
-            f4 += mu['gt'][ite-1][period+1][i]*(m_b[period]._gt[i,0] - svars['gt'][ite-1][i,period])
-        for i in range(NH):
-            f5 += mu['vol'][ite-1][period+1][i]*(m_b[period]._vol[i,0] - svars['vol'][ite-1][i,period])
-            if df_hidr['TRAVELTIME'][i] > 0:
-                for l in range(df_hidr['TRAVELTIME'][i],0,-1):
-                    if l-df_hidr['TRAVELTIME'][i]+period-1 < 0:
-                        break
-                    if l == df_hidr['TRAVELTIME'][i]:
-                        f6 += mu['turb'][ite-1][i][l-1,period+1]*(m_b[period]._turb[i,0] - svars['turb'][ite-1][i,period])
-                        f6 += mu['vert'][ite-1][i][l-1,period+1]*(m_b[period]._vert[i,0] - svars['vert'][ite-1][i,period])
-                    else:
-                        f6 += mu['turb'][ite-1][i][l-1,period+1]*(m_b[period]._aux_turb[i,period][l] - svars['turb'][ite-1][i,l-df_hidr['TRAVELTIME'][i]+period])
-                        f6 += mu['vert'][ite-1][i][l-1,period+1]*(m_b[period]._aux_vert[i,period][l] - svars['vert'][ite-1][i,l-df_hidr['TRAVELTIME'][i]+period])
-        m_b[period].addConstr(m_b[period]._Theta[0] >= obj[ite-1,period+1] + f1 + f2 + f3 + f4 + f5 + f6) # Cut added to backward problem
-
-    # # # # # end insert cuts
 
     for period in range(1,NT+1):
         if period > 1:
@@ -439,74 +367,74 @@ while best_gap >= tolerance and ite < maxiter:
                     m_b[period].setAttr("RHS", m_b[period].getConstrByName("c_vert[%d,%d]"%(i,l-1)), (svars['vert'][ite][i,l-df_hidr['TRAVELTIME'][i]+period-1] if l-df_hidr['TRAVELTIME'][i]+period-1 >= 0 else 0))
 
         # # # # # begin insert cuts
-        # if 1 <= period <= NT-1:
-        #     f1,f2,f3,f4,f5,f6 = 0,0,0,0,0,0
-        #     for i in range(NG):
-        #         f1 += mu['tu'][ite][period+1][i]*(m_f[period]._tu[i,0] - svars['tu'][ite][i,period])
-        #         if df_term['UPTIME'][i] > 1:
-        #             for l in range(df_term['UPTIME'][i]-1,0,-1):
-        #                 if l - df_term['UPTIME'][i] + period < 0:
-        #                     break
-        #                 if l == df_term['UPTIME'][i] - 1:
-        #                     f2 += mu['tv'][ite][i][l-1,period+1]*(m_f[period]._tv[i,0] - svars['tv'][ite][i,period])
-        #                 else:
-        #                     f2 += mu['tv'][ite][i][l-1,period+1]*(m_f[period]._aux_tv[i,period][l] - svars['tv'][ite][i,l-df_term['UPTIME'][i]+period+1])
-        #         if df_term['DOWNTIME'][i] > 1:
-        #             for l in range(df_term['DOWNTIME'][i]-1,0,-1):
-        #                 if l - df_term['DOWNTIME'][i] + period < 0:
-        #                     break
-        #                 if l == df_term['DOWNTIME'][i] - 1:
-        #                     f3 += mu['tw'][ite][i][l-1,period+1]*(m_f[period]._tw[i,0] - svars['tw'][ite][i,period])
-        #                 else:
-        #                     f3 += mu['tw'][ite][i][l-1,period+1]*(m_f[period]._aux_tw[i,period][l] - svars['tw'][ite][i,l-df_term['DOWNTIME'][i]+period+1])
-        #         f4 += mu['gt'][ite][period+1][i]*(m_f[period]._gt[i,0] - svars['gt'][ite][i,period])
-        #     for i in range(NH):
-        #         f5 += mu['vol'][ite][period+1][i]*(m_f[period]._vol[i,0] - svars['vol'][ite][i,period])
-        #         if df_hidr['TRAVELTIME'][i] > 0:
-        #             for l in range(df_hidr['TRAVELTIME'][i],0,-1):
-        #                 if l-df_hidr['TRAVELTIME'][i]+period-1 < 0:
-        #                     break
-        #                 if l == df_hidr['TRAVELTIME'][i]:
-        #                     f6 += mu['turb'][ite][i][l-1,period+1]*(m_f[period]._turb[i,0] - svars['turb'][ite][i,period])
-        #                     f6 += mu['vert'][ite][i][l-1,period+1]*(m_f[period]._vert[i,0] - svars['vert'][ite][i,period])
-        #                 else:
-        #                     f6 += mu['turb'][ite][i][l-1,period+1]*(m_f[period]._aux_turb[i,period][l] - svars['turb'][ite][i,l-df_hidr['TRAVELTIME'][i]+period])
-        #                     f6 += mu['vert'][ite][i][l-1,period+1]*(m_f[period]._aux_vert[i,period][l] - svars['vert'][ite][i,l-df_hidr['TRAVELTIME'][i]+period])
-        #     m_f[period].addConstr(m_f[period]._Theta[0] >= obj[ite,period+1] + f1 + f2 + f3 + f4 + f5 + f6) # Cut added to forward problem
-        #
-        #     f1,f2,f3,f4,f5,f6 = 0,0,0,0,0,0
-        #     for i in range(NG):
-        #         f1 += mu['tu'][ite][period+1][i]*(m_b[period]._tu[i,0] - svars['tu'][ite][i,period])
-        #         if df_term['UPTIME'][i] > 1:
-        #             for l in range(df_term['UPTIME'][i]-1,0,-1):
-        #                 if l - df_term['UPTIME'][i] + period < 0:
-        #                     break
-        #                 if l == df_term['UPTIME'][i] - 1:
-        #                     f2 += mu['tv'][ite][i][l-1,period+1]*(m_b[period]._tv[i,0] - svars['tv'][ite][i,period])
-        #                 else:
-        #                     f2 += mu['tv'][ite][i][l-1,period+1]*(m_b[period]._aux_tv[i,period][l] - svars['tv'][ite][i,l-df_term['UPTIME'][i]+period+1])
-        #         if df_term['DOWNTIME'][i] > 1:
-        #             for l in range(df_term['DOWNTIME'][i]-1,0,-1):
-        #                 if l - df_term['DOWNTIME'][i] + period < 0:
-        #                     break
-        #                 if l == df_term['DOWNTIME'][i] - 1:
-        #                     f3 += mu['tw'][ite][i][l-1,period+1]*(m_b[period]._tw[i,0] - svars['tw'][ite][i,period])
-        #                 else:
-        #                     f3 += mu['tw'][ite][i][l-1,period+1]*(m_b[period]._aux_tw[i,period][l] - svars['tw'][ite][i,l-df_term['DOWNTIME'][i]+period+1])
-        #         f4 += mu['gt'][ite][period+1][i]*(m_b[period]._gt[i,0] - svars['gt'][ite][i,period])
-        #     for i in range(NH):
-        #         f5 += mu['vol'][ite][period+1][i]*(m_b[period]._vol[i,0] - svars['vol'][ite][i,period])
-        #         if df_hidr['TRAVELTIME'][i] > 0:
-        #             for l in range(df_hidr['TRAVELTIME'][i],0,-1):
-        #                 if l-df_hidr['TRAVELTIME'][i]+period-1 < 0:
-        #                     break
-        #                 if l == df_hidr['TRAVELTIME'][i]:
-        #                     f6 += mu['turb'][ite][i][l-1,period+1]*(m_b[period]._turb[i,0] - svars['turb'][ite][i,period])
-        #                     f6 += mu['vert'][ite][i][l-1,period+1]*(m_b[period]._vert[i,0] - svars['vert'][ite][i,period])
-        #                 else:
-        #                     f6 += mu['turb'][ite][i][l-1,period+1]*(m_b[period]._aux_turb[i,period][l] - svars['turb'][ite][i,l-df_hidr['TRAVELTIME'][i]+period])
-        #                     f6 += mu['vert'][ite][i][l-1,period+1]*(m_b[period]._aux_vert[i,period][l] - svars['vert'][ite][i,l-df_hidr['TRAVELTIME'][i]+period])
-        #     m_b[period].addConstr(m_b[period]._Theta[0] >= obj[ite,period+1] + f1 + f2 + f3 + f4 + f5 + f6) # Cut added to backward problem
+        if 1 <= period <= NT-1:
+            f1,f2,f3,f4,f5,f6 = 0,0,0,0,0,0
+            for i in range(NG):
+                f1 += mu['tu'][ite][period+1][i]*(m_f[period]._tu[i,0] - svars['tu'][ite][i,period])
+                if df_term['UPTIME'][i] > 1:
+                    for l in range(df_term['UPTIME'][i]-1,0,-1):
+                        if l - df_term['UPTIME'][i] + period < 0:
+                            break
+                        if l == df_term['UPTIME'][i] - 1:
+                            f2 += mu['tv'][ite][i][l-1,period+1]*(m_f[period]._tv[i,0] - svars['tv'][ite][i,period])
+                        else:
+                            f2 += mu['tv'][ite][i][l-1,period+1]*(m_f[period]._aux_tv[i,period][l] - svars['tv'][ite][i,l-df_term['UPTIME'][i]+period+1])
+                if df_term['DOWNTIME'][i] > 1:
+                    for l in range(df_term['DOWNTIME'][i]-1,0,-1):
+                        if l - df_term['DOWNTIME'][i] + period < 0:
+                            break
+                        if l == df_term['DOWNTIME'][i] - 1:
+                            f3 += mu['tw'][ite][i][l-1,period+1]*(m_f[period]._tw[i,0] - svars['tw'][ite][i,period])
+                        else:
+                            f3 += mu['tw'][ite][i][l-1,period+1]*(m_f[period]._aux_tw[i,period][l] - svars['tw'][ite][i,l-df_term['DOWNTIME'][i]+period+1])
+                f4 += mu['gt'][ite][period+1][i]*(m_f[period]._gt[i,0] - svars['gt'][ite][i,period])
+            for i in range(NH):
+                f5 += mu['vol'][ite][period+1][i]*(m_f[period]._vol[i,0] - svars['vol'][ite][i,period])
+                if df_hidr['TRAVELTIME'][i] > 0:
+                    for l in range(df_hidr['TRAVELTIME'][i],0,-1):
+                        if l-df_hidr['TRAVELTIME'][i]+period-1 < 0:
+                            break
+                        if l == df_hidr['TRAVELTIME'][i]:
+                            f6 += mu['turb'][ite][i][l-1,period+1]*(m_f[period]._turb[i,0] - svars['turb'][ite][i,period])
+                            f6 += mu['vert'][ite][i][l-1,period+1]*(m_f[period]._vert[i,0] - svars['vert'][ite][i,period])
+                        else:
+                            f6 += mu['turb'][ite][i][l-1,period+1]*(m_f[period]._aux_turb[i,period][l] - svars['turb'][ite][i,l-df_hidr['TRAVELTIME'][i]+period])
+                            f6 += mu['vert'][ite][i][l-1,period+1]*(m_f[period]._aux_vert[i,period][l] - svars['vert'][ite][i,l-df_hidr['TRAVELTIME'][i]+period])
+            m_f[period].addConstr(m_f[period]._Theta[0] >= obj[ite,period+1] + f1 + f2 + f3 + f4 + f5 + f6) # Cut added to forward problem
+
+            f1,f2,f3,f4,f5,f6 = 0,0,0,0,0,0
+            for i in range(NG):
+                f1 += mu['tu'][ite][period+1][i]*(m_b[period]._tu[i,0] - svars['tu'][ite][i,period])
+                if df_term['UPTIME'][i] > 1:
+                    for l in range(df_term['UPTIME'][i]-1,0,-1):
+                        if l - df_term['UPTIME'][i] + period < 0:
+                            break
+                        if l == df_term['UPTIME'][i] - 1:
+                            f2 += mu['tv'][ite][i][l-1,period+1]*(m_b[period]._tv[i,0] - svars['tv'][ite][i,period])
+                        else:
+                            f2 += mu['tv'][ite][i][l-1,period+1]*(m_b[period]._aux_tv[i,period][l] - svars['tv'][ite][i,l-df_term['UPTIME'][i]+period+1])
+                if df_term['DOWNTIME'][i] > 1:
+                    for l in range(df_term['DOWNTIME'][i]-1,0,-1):
+                        if l - df_term['DOWNTIME'][i] + period < 0:
+                            break
+                        if l == df_term['DOWNTIME'][i] - 1:
+                            f3 += mu['tw'][ite][i][l-1,period+1]*(m_b[period]._tw[i,0] - svars['tw'][ite][i,period])
+                        else:
+                            f3 += mu['tw'][ite][i][l-1,period+1]*(m_b[period]._aux_tw[i,period][l] - svars['tw'][ite][i,l-df_term['DOWNTIME'][i]+period+1])
+                f4 += mu['gt'][ite][period+1][i]*(m_b[period]._gt[i,0] - svars['gt'][ite][i,period])
+            for i in range(NH):
+                f5 += mu['vol'][ite][period+1][i]*(m_b[period]._vol[i,0] - svars['vol'][ite][i,period])
+                if df_hidr['TRAVELTIME'][i] > 0:
+                    for l in range(df_hidr['TRAVELTIME'][i],0,-1):
+                        if l-df_hidr['TRAVELTIME'][i]+period-1 < 0:
+                            break
+                        if l == df_hidr['TRAVELTIME'][i]:
+                            f6 += mu['turb'][ite][i][l-1,period+1]*(m_b[period]._turb[i,0] - svars['turb'][ite][i,period])
+                            f6 += mu['vert'][ite][i][l-1,period+1]*(m_b[period]._vert[i,0] - svars['vert'][ite][i,period])
+                        else:
+                            f6 += mu['turb'][ite][i][l-1,period+1]*(m_b[period]._aux_turb[i,period][l] - svars['turb'][ite][i,l-df_hidr['TRAVELTIME'][i]+period])
+                            f6 += mu['vert'][ite][i][l-1,period+1]*(m_b[period]._aux_vert[i,period][l] - svars['vert'][ite][i,l-df_hidr['TRAVELTIME'][i]+period])
+            m_b[period].addConstr(m_b[period]._Theta[0] >= obj[ite,period+1] + f1 + f2 + f3 + f4 + f5 + f6) # Cut added to backward problem
         # # # # # end insert cuts
 
         et = time.time()
@@ -553,7 +481,7 @@ while best_gap >= tolerance and ite < maxiter:
 
 print('total elapsed time: %f seconds'%tet)
 
-name_exp = "gap0001_CAB" #Cuts current backward
+name_exp = "gap000001_CCB" #Cuts current backward
 savetxt(save_path+'/'+name_exp+'_bestUB', best_UB_Vector, fmt='%f')
 savetxt(save_path+'/'+name_exp+'_LB', LB_Vector, fmt='%f')
 savetxt(save_path+'/'+name_exp+'_UB', UB_Vector, fmt='%f')
@@ -562,33 +490,16 @@ savetxt(save_path+'/'+name_exp+'_bestgap', best_gap_Vector, fmt='%f')
 
 # def save_results():
 #
+#
+#     workbook = xlsxwriter.Workbook(save_path + '\\ddip_results2.xlsx')
+#
 #     name_exp = "gap01_CAB"
 #     best_UB = loadtxt(save_path+'/'+name_exp+'_bestUB')
 #     LB_Vector = loadtxt(save_path+'/'+name_exp+'_LB')
 #     UB_Vector = loadtxt(save_path+'/'+name_exp+'_UB')
 #     best_gap_Vector = loadtxt(save_path+'/'+name_exp+'_bestgap')
 #
-#     workbook = xlsxwriter.Workbook(save_path + '\\ddip_results1.xlsx')
 #     worksheet = workbook.add_worksheet('exp_01_CAB')
-#     worksheet.set_column('A:A', 20)
-#
-#     worksheet.write(1,1,"Best UB")
-#     worksheet.write(1,2,"UB")
-#     worksheet.write(1,3,"LB")
-#     worksheet.write(1,4,"Best GAP")
-#     for j in range(best_UB.shape[0]):
-#         worksheet.write(j+2,1,best_UB[j])
-#         worksheet.write(j+2,2,UB_Vector[j])
-#         worksheet.write(j+2,3,LB_Vector[j])
-#         worksheet.write(j+2,4,best_gap_Vector[j])
-#
-#     name_exp = "gap001_CAB"
-#     best_UB = loadtxt(save_path+'/'+name_exp+'_bestUB')
-#     LB_Vector = loadtxt(save_path+'/'+name_exp+'_LB')
-#     UB_Vector = loadtxt(save_path+'/'+name_exp+'_UB')
-#     best_gap_Vector = loadtxt(save_path+'/'+name_exp+'_bestgap')
-#
-#     worksheet = workbook.add_worksheet('exp_001_CAB')
 #     worksheet.set_column('A:A', 20)
 #
 #     worksheet.write(1,1,"Best UB")
@@ -608,6 +519,84 @@ savetxt(save_path+'/'+name_exp+'_bestgap', best_gap_Vector, fmt='%f')
 #     best_gap_Vector = loadtxt(save_path+'/'+name_exp+'_bestgap')
 #
 #     worksheet = workbook.add_worksheet('exp_0001_CAB')
+#     worksheet.set_column('A:A', 20)
+#
+#     worksheet.write(1,1,"Best UB")
+#     worksheet.write(1,2,"UB")
+#     worksheet.write(1,3,"LB")
+#     worksheet.write(1,4,"Best GAP")
+#     for j in range(best_UB.shape[0]):
+#         worksheet.write(j+2,1,best_UB[j])
+#         worksheet.write(j+2,2,UB_Vector[j])
+#         worksheet.write(j+2,3,LB_Vector[j])
+#         worksheet.write(j+2,4,best_gap_Vector[j])
+#
+#     name_exp = "gap000001_CAB"
+#     best_UB = loadtxt(save_path+'/'+name_exp+'_bestUB')
+#     LB_Vector = loadtxt(save_path+'/'+name_exp+'_LB')
+#     UB_Vector = loadtxt(save_path+'/'+name_exp+'_UB')
+#     best_gap_Vector = loadtxt(save_path+'/'+name_exp+'_bestgap')
+#
+#     worksheet = workbook.add_worksheet('exp_000001_CAB')
+#     worksheet.set_column('A:A', 20)
+#
+#     worksheet.write(1,1,"Best UB")
+#     worksheet.write(1,2,"UB")
+#     worksheet.write(1,3,"LB")
+#     worksheet.write(1,4,"Best GAP")
+#     for j in range(best_UB.shape[0]):
+#         worksheet.write(j+2,1,best_UB[j])
+#         worksheet.write(j+2,2,UB_Vector[j])
+#         worksheet.write(j+2,3,LB_Vector[j])
+#         worksheet.write(j+2,4,best_gap_Vector[j])
+#
+#     name_exp = "gap01_CCB"
+#     best_UB = loadtxt(save_path+'/'+name_exp+'_bestUB')
+#     LB_Vector = loadtxt(save_path+'/'+name_exp+'_LB')
+#     UB_Vector = loadtxt(save_path+'/'+name_exp+'_UB')
+#     best_gap_Vector = loadtxt(save_path+'/'+name_exp+'_bestgap')
+#
+#     worksheet = workbook.add_worksheet('exp_01_CCB')
+#     worksheet.set_column('A:A', 20)
+#
+#     worksheet.write(1,1,"Best UB")
+#     worksheet.write(1,2,"UB")
+#     worksheet.write(1,3,"LB")
+#     worksheet.write(1,4,"Best GAP")
+#     for j in range(best_UB.shape[0]):
+#         worksheet.write(j+2,1,best_UB[j])
+#         worksheet.write(j+2,2,UB_Vector[j])
+#         worksheet.write(j+2,3,LB_Vector[j])
+#         worksheet.write(j+2,4,best_gap_Vector[j])
+#
+#
+#
+#     name_exp = "gap0001_CCB"
+#     best_UB = loadtxt(save_path+'/'+name_exp+'_bestUB')
+#     LB_Vector = loadtxt(save_path+'/'+name_exp+'_LB')
+#     UB_Vector = loadtxt(save_path+'/'+name_exp+'_UB')
+#     best_gap_Vector = loadtxt(save_path+'/'+name_exp+'_bestgap')
+#
+#     worksheet = workbook.add_worksheet('exp_0001_CCB')
+#     worksheet.set_column('A:A', 20)
+#
+#     worksheet.write(1,1,"Best UB")
+#     worksheet.write(1,2,"UB")
+#     worksheet.write(1,3,"LB")
+#     worksheet.write(1,4,"Best GAP")
+#     for j in range(best_UB.shape[0]):
+#         worksheet.write(j+2,1,best_UB[j])
+#         worksheet.write(j+2,2,UB_Vector[j])
+#         worksheet.write(j+2,3,LB_Vector[j])
+#         worksheet.write(j+2,4,best_gap_Vector[j])
+#
+#     name_exp = "gap000001_CCB"
+#     best_UB = loadtxt(save_path+'/'+name_exp+'_bestUB')
+#     LB_Vector = loadtxt(save_path+'/'+name_exp+'_LB')
+#     UB_Vector = loadtxt(save_path+'/'+name_exp+'_UB')
+#     best_gap_Vector = loadtxt(save_path+'/'+name_exp+'_bestgap')
+#
+#     worksheet = workbook.add_worksheet('exp_000001_CCB')
 #     worksheet.set_column('A:A', 20)
 #
 #     worksheet.write(1,1,"Best UB")

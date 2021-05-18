@@ -4,7 +4,7 @@ path = 'C:\\Users\\User\\Documents\\data118en\\'
 save_path = 'results'
 
 import pandas as pd
-from numpy import array, round, append, loadtxt, savetxt, unique, zeros, ones, insert, flatnonzero as find
+from numpy import array, round, append, loadtxt, savetxt, unique, zeros, ones, insert, linspace, flatnonzero as find
 from ext2int import ext2int
 from dcopf import dcopf
 import time
@@ -31,90 +31,25 @@ NL = df_branch.shape[0]
 
 df_load = pd.read_excel(path + 'load.xlsx')
 
-def piecewise1d(model, x1, x2, z, fx, intervs, method="MC", dim=1, params=None):
-    vmin = params['vmin']
-    vmax = params['vmax']
-    vref = 0.5*(vmax + vmin)
 
-    if method == "MC":
-        n = len(intervs)
-        if dim == 1:
-            y = model.addVars(n, vtype='B', name='y')
-            xhat = model.addVars(n, vtype='C', name='xhat')
-            zhat = model.addVars(n, vtype='C', name='zhat')
-
-            model.addConstr(quicksum(y[i] for i in range(n)) <= 1)
-            model.addConstr(quicksum(xhat[i] for i in range(n)) == x1)
-            model.addConstr(quicksum(zhat[i] for i in range(n)) == baseMVA*z)
-
-            for i in range(n):
-                model.addConstr(xhat[i] >= intervs[i][0]*y[i])
-            for i in range(n):
-                model.addConstr(xhat[i] <= intervs[i][1]*y[i])
-            for i in range(n):
-                model.addConstr(zhat[i] == fx(vref,intervs[i][0])*y[i] + (fx(vref,intervs[i][1])-fx(vref,intervs[i][0]))/(intervs[i][1]-intervs[i][0])*(xhat[i]-intervs[i][0]*y[i]))
-        else:
-            y = model.addVars(n, vtype='B', name='y')
-            xhat = model.addVars(n, vtype='C', name='xhat')
-            zhat = model.addVars(n, vtype='C', name='zhat')
-
-            model.addConstr(quicksum(y[i] for i in range(n)) <= 1)
-            model.addConstr(quicksum(xhat[i] for i in range(n)) == x1)
-            model.addConstr(quicksum(zhat[i] for i in range(n)) == baseMVA*z)
-
-            for i in range(n):
-                model.addConstr(xhat[i] >= intervs[i][0]*y[i])
-            for i in range(n):
-                model.addConstr(xhat[i] <= intervs[i][1]*y[i])
-
-            pvy = model.addVars(n, vtype='C', name='pvy')
-            for i in range(n):
-                # beta_k = 0.5*((fx(vmax,intervs[i][1])-fx(vmin,intervs[i][1]))/(vmax-vmin))
-                beta_p = ((fx(vmax, intervs[i][0]) - fx(vref, intervs[i][0])) / (vmax - vref))
-                # model.addConstr(pvy[i] <= vmax)
-                # model.addConstr(vmin*y[i] <= pvy[i])
-                # model.addConstr(pvy[i] <= vmax*y[i])
-                # model.addConstr(x2 - (1-y[i])*vmax <= pvy[i])
-                # model.addConstr(pvy[i] <= x2 - (1-y[i])*vmin)
-                # model.addConstr(pvy[i] <= x2 + (1-y[i])*vmax)
-
-                # model.addConstr(zhat[i] == fx(Vfix,intervs[i][0])*y[i] +
-                #                 (fx(Vfix,intervs[i][1])-fx(Vfix,intervs[i][0]))/(intervs[i][1]-intervs[i][0])*(xhat[i]-intervs[i][0]*y[i])
-                #                 + beta_k*pvy[i] - beta_k*0.5*(vmax+vmin)*y[i] ) #+ beta_k*(x2 - 0.5*(vmax-vmin))*y[i]
-                # model.addConstr(zhat[i] == fx(Vfix,intervs[i][0])*y[i] + (fx(Vfix,intervs[i][1])-fx(Vfix,intervs[i][0]))/(intervs[i][1]-intervs[i][0])*(xhat[i]-intervs[i][0]*y[i])) #+ beta_k*(x2 - 0.5*(vmax+vmin))*y[i]
-                # model.addConstr(zhat[i] == fx(Vfix,intervs[i][0])*y[i] + (fx(Vfix,intervs[i][1])-fx(Vfix,intervs[i][0]))/(intervs[i][1]-intervs[i][0])*(xhat[i]-intervs[i][0]*y[i]) + beta_k*pvy[i] - beta_k*Vfix*y[i] ) #+ beta_k*(x2 - 0.5*(vmax-vmin))*y[i]
-                model.addConstr(zhat[i] == fx(vref,intervs[i][0])*y[i] + (fx(vref,intervs[i][1])-fx(vref,intervs[i][0]))/(intervs[i][1]-intervs[i][0])*(xhat[i]-intervs[i][0]*y[i]) + beta_p*(x2 - vref)*y[i] ) #+ beta_k*(x2 - 0.5*(vmax-vmin))*y[i]
-
-    else:
-        print('erro, formulações PWL disponiveis: MC')
-        exit(0)
-
-
-
-    return 0 #z
-
-def find_optzones(id_plant,df):
-    nmaq = int(df['NMAQ'][id_plant - 1])
-    qmax = df['QMAX'][id_plant - 1]
-    qmin = df['QMIN'][id_plant - 1]
-
-    opt_zones = array([[qmin, qmax]])
-    for i in range(2, nmaq + 1):
-        if i * qmin <= (i - 1) * qmax:
-            break
-        else:
-            opt_zones = append(opt_zones, array([[i * qmin, i * qmax]]), axis=0)
-    opt_zones[-1][1] = qmax * nmaq
-
-    return opt_zones
-
-def fph_model(model,nblocks,MILP_LP):
+def fph_model(model,nblocks,t0,MILP_LP):
     FPH_MODEL = 'CH'
+    NT = model._NT
 
     gh = model.addMVar((NH,nblocks), name='gh')
     vol = model.addMVar((NH,nblocks), name='vol')
     turb = model.addMVar((NH,nblocks), name='turb')
     vert = model.addMVar((NH,nblocks), name='vert')
+
+
+
+    for i in range(NH):
+        for j in range(nblocks):
+            vol[i,j].setAttr(GRB.Attr.VarName,"vol[%d,%d]"%(i,j+t0))
+            turb[i,j].setAttr(GRB.Attr.VarName,"turb[%d,%d]"%(i,j+t0))
+            vert[i,j].setAttr(GRB.Attr.VarName,"vert[%d,%d]"%(i,j+t0))
+            gh[i,j].setAttr(GRB.Attr.VarName,"gh[%d,%d]"%(i,j+t0))
+            # print(gh[i,j].getAttr(GRB.Attr.VarName)) #exemplo de imprimir variaveis
 
     if MILP_LP:
         hu = model.addMVar((NH,nblocks),vtype='B', name='hon')
@@ -155,7 +90,7 @@ def fph_model(model,nblocks,MILP_LP):
     model._turb = turb
     model._vert = vert
 
-def term_model(model,nblocks,MILP_LP):
+def term_model(model,nblocks,t0,MILP_LP):
 
     gt = model.addMVar((NG,nblocks),name="gt")
 
@@ -167,10 +102,17 @@ def term_model(model,nblocks,MILP_LP):
         tv = model.addMVar((NG,nblocks),name="tv", vtype='C', ub=1)
         tw = model.addMVar((NG,nblocks),name="tw", vtype='C', ub=1)
         tu = model.addMVar((NG,nblocks),name="tu", vtype='C', ub=1)
-    # gt, tv, tw, tu = {},{},{},{}
+
     for i in range(NG):
         model.addConstr(gt[i,:] <= tu[i,:]*df_term['PMAX'][i]/baseMVA)
         model.addConstr(gt[i,:] >= tu[i,:]*df_term['PMIN'][i]/baseMVA)
+
+    for i in range(NG):
+        for j in range(nblocks):
+            tv[i,j].setAttr(GRB.Attr.VarName,"tv[%d,%d]"%(i,j+t0))
+            tw[i,j].setAttr(GRB.Attr.VarName,"tw[%d,%d]"%(i,j+t0))
+            tu[i,j].setAttr(GRB.Attr.VarName,"tu[%d,%d]"%(i,j+t0))
+            gt[i,j].setAttr(GRB.Attr.VarName,"gt[%d,%d]"%(i,j+t0))
 
     model._gt = gt
     model._tv = tv
@@ -194,12 +136,11 @@ def uct_model(model,svars,ite,nblocks,t0):
 
 
     model.addConstr(tv[:,0]-tw[:,0] == tu[:,0] - aux_tu)
-
-    # for blocks > 1
-    # for j in range(1,nblocks):
-    #     model.addConstr(tv[:,j]-tw[:,j] == tu[:,j] - tu[:,j-1])
+    for j in range(1,nblocks):
+        model.addConstr(tv[:,j]-tw[:,j] == tu[:,j] - tu[:,j-1])
 
 
+    # # # UPTIME, DOWNTIME, RAMP
     for i in range(NG):
         aux_tv[i,t0] = model.addMVar(int(df_term['UPTIME'][i]-1), name='aux_tv[%d,%d]'%(i,t0), ub=1)
         for l in range(df_term['UPTIME'][i]-1,0,-1):
@@ -212,27 +153,36 @@ def uct_model(model,svars,ite,nblocks,t0):
                     model.addConstr(tv[i,j-t0] == 0)
                     model.addConstr(tw[i,j-t0] == 0)
                 else:
-                    model.addConstr(aux_tv[i,t0].sum() + tv[i,j-t0] <= tu[i,j-t0])
+                    model.addConstr(aux_tv[i,t0][0:max(df_term['UPTIME'][i]-(j-t0) - 1,0)].sum() + tv[i,max(j-t0-df_term['UPTIME'][i]+1,0):j-t0+1].sum() <= tu[i,j-t0])
 
             else:
-                model.addConstr(aux_tv[i,t0].sum() + tv[i,j-t0] <= tu[i,j-t0])
+                model.addConstr(aux_tv[i,t0][0:max(df_term['UPTIME'][i]-(j-t0) - 1,0)].sum() + tv[i,max(j-t0-df_term['UPTIME'][i]+1,0):j-t0+1].sum() <= tu[i,j-t0])
 
-        aux_tw[i,t0] = model.addMVar(int(df_term['DOWNTIME'][i]-1), name='aux_tw[%d,%d]'%(i,t0), ub=1)
-        for l in range(df_term['DOWNTIME'][i]-1,0,-1):
-            model.addConstr(aux_tw[i,t0][l-1] == (svars['tw'][ite][i,l-df_term['DOWNTIME'][i]+t0] if l-df_term['DOWNTIME'][i]+t0 >= 0 else 0), name='c_tw[%d,%d]'%(i,l-1))
+    # arr = ones(13)
+    # arr_ = linspace(0,12,13)
+    # j=21
+    # print(max(df_term['UPTIME'][i]-(j-t0) - 1,0))
+    # print(max(j-t0-df_term['UPTIME'][i]+1,0))
+    # print(j-t0+1)
 
-        for j in range(t0,t0+nblocks):
-            if df_term['TON'][i] < 0:
-                if j + df_term['TON'][i] <= df_term['DOWNTIME'][i]:
-                    model.addConstr(tu[i,j-t0] == 0)
-                    model.addConstr(tv[i,j-t0] == 0)
-                    model.addConstr(tw[i,j-t0] == 0)
-                else:
-                    model.addConstr(aux_tw[i,t0].sum() + tw[i,j-t0] <= 1 - tu[i,j-t0])
-
-            else:
-                model.addConstr(aux_tw[i,t0].sum() + tw[i,j-t0] <= 1 - tu[i,j-t0])
-
+    #
+    #     aux_tw[i,t0] = model.addMVar(int(df_term['DOWNTIME'][i]-1), name='aux_tw[%d,%d]'%(i,t0), ub=1)
+    #     for l in range(df_term['DOWNTIME'][i]-1,0,-1):
+    #         model.addConstr(aux_tw[i,t0][l-1] == (svars['tw'][ite][i,l-df_term['DOWNTIME'][i]+t0] if l-df_term['DOWNTIME'][i]+t0 >= 0 else 0), name='c_tw[%d,%d]'%(i,l-1))
+    #
+    #     for j in range(t0,t0+nblocks):
+    #         if df_term['TON'][i] < 0:
+    #             if j + df_term['TON'][i] <= df_term['DOWNTIME'][i]:
+    #                 model.addConstr(tu[i,j-t0] == 0)
+    #                 model.addConstr(tv[i,j-t0] == 0)
+    #                 model.addConstr(tw[i,j-t0] == 0)
+    #             else:
+    #                 model.addConstr(aux_tw[i,t0].sum() + tw[i,j-t0] <= 1 - tu[i,j-t0])
+    #
+    #         else:
+    #             model.addConstr(aux_tw[i,t0].sum() + tw[i,j-t0] <= 1 - tu[i,j-t0])
+    #
+    #
 
         if t0 == 1:
             if df_term['TON'][i] > 0:
@@ -240,7 +190,10 @@ def uct_model(model,svars,ite,nblocks,t0):
             else:
                 model.addConstr(gt[i,0] <= df_term['PMIN'][i]*tv[i,0]/baseMVA)
         else:
-            model.addConstr(gt[i,:] - aux_gt[i] <= min(df_term['RAMPUP'][i],1000)*aux_tu[i]/baseMVA + df_term['PMIN'][i]*tv[i,:]/baseMVA)
+            model.addConstr(gt[i,0] - aux_gt[i] <= min(df_term['RAMPUP'][i],1000)*aux_tu[i]/baseMVA + df_term['PMIN'][i]*tv[i,0]/baseMVA)
+
+        for j in range(1,nblocks):
+            model.addConstr(gt[i,j] - gt[i,j-1] <= min(df_term['RAMPUP'][i],1000)*tu[i,j-1]/baseMVA + df_term['PMIN'][i]*tv[i,j]/baseMVA)
 
         if t0 == 1:
             if df_term['TON'][i] > 0:
@@ -248,7 +201,10 @@ def uct_model(model,svars,ite,nblocks,t0):
             else:
                 model.addConstr(-gt[i,0] <= min(df_term['RAMPDOWN'][i],1000)*tu[i,0]/baseMVA + df_term['PMIN'][i]*tw[i,0]/baseMVA)
         else:
-            model.addConstr(aux_gt[i] - gt[i,:] <= min(df_term['RAMPDOWN'][i],1000)*tu[i,:]/baseMVA + df_term['PMIN'][i]*tw[i,:]/baseMVA)
+            model.addConstr(aux_gt[i] - gt[i,0] <= min(df_term['RAMPDOWN'][i],1000)*tu[i,0]/baseMVA + df_term['PMIN'][i]*tw[i,0]/baseMVA)
+
+        for j in range(1,nblocks):
+            model.addConstr(gt[i,j-1] - gt[i,j] <= min(df_term['RAMPDOWN'][i],1000)*tu[i,j]/baseMVA + df_term['PMIN'][i]*tw[i,j]/baseMVA)
 
     model._aux_tv = aux_tv
     model._aux_tw = aux_tw
@@ -420,253 +376,9 @@ def fobj(model,nblocks):
         f1 += baseMVA*cdef*model._nSlp[i,:].sum()
         f1 += baseMVA*cdef*model._nSln[i,:].sum()
 
-    for i in range(NH):
-        f1 += baseMVA*cdef*model._nwbp[i,:].sum()
-        f1 += baseMVA*cdef*model._nwbn[i,:].sum()
+    # for i in range(NH):
+    #     f1 += baseMVA*cdef*model._nwbp[i,:].sum()
+    #     f1 += baseMVA*cdef*model._nwbn[i,:].sum()
 
     return f1
 
-def uch_model(model,NT):
-    Dp = 0.25 # Delta Potencia
-
-    df = pd.read_excel(path + 'hidrodata.xlsx')
-    NH = df.shape[0]
-    for i in range(NH):
-        for j in range(1,NT):
-            model.addConstr(model._gh[i,j] >= (1-Dp)*model._gh[i,j-1])
-            model.addConstr(model._gh[i,j] <= (1+Dp)*model._gh[i,j-1])
-
-### post-processing
-def save_results(model, NT, name_exp):
-    df = pd.read_excel(path + 'termdata.xlsx')
-    NG = df.shape[0]
-    df = pd.read_excel(path + 'hydrodata.xlsx')
-    NH = df.shape[0]
-
-
-    tpgval = array([[round(model._gt[i,j].x[0],2) for j in range(NT)] for i in range(NG)])
-    hpgval = array([[round(model._gh[i,j].x[0],2) for j in range(NT)] for i in range(NH)])
-    hqval = array([[round(model._turb[i,j].x[0],2) for j in range(NT)] for i in range(NH)])
-    hSval = array([[round(model._vert[i,j].x[0],2) for j in range(NT)] for i in range(NH)])
-    hvolval = array([[round(model._vol[i,j].x[0],2) for j in range(NT)] for i in range(NH)])
-    hvolval = insert(hvolval, 0, round((0.01*df['V0']*(df['VMAX']-df['VMIN'])+df['VMIN']).to_numpy(),2), axis=1)
-    # nflval = np.array([[100 * nfl[i, j].x for j in range(NT)] for i in range(NL)])
-    # slack = np.array([[nSl[i, j].x for j in range(NT)] for i in range(NB)])
-
-    nSlp = array([[round(model._nSlp[i,j].x[0],2) for j in range(NT)] for i in range(NB)])
-    nSln = array([[round(model._nSln[i,j].x[0],2) for j in range(NT)] for i in range(NB)])
-
-    # savetxt(save_path+'/GT', tpgval, fmt='%f')
-    # savetxt(save_path+'/GH', hpgval, fmt='%f')
-    # savetxt(save_path+'/TURB', hqval, fmt='%f')
-    # savetxt(save_path+'/VERT', hSval, fmt='%f')
-    # savetxt(save_path+'/VOL', hvolval, fmt='%f')
-
-    df = pd.read_excel(path + 'hydrodata.xlsx')
-    NH = df.shape[0]
-    workbook = xlsxwriter.Workbook(save_path + '\\results_' + name_exp + '_new.xlsx')
-    worksheet = workbook.add_worksheet('gen_hydro')
-    worksheet.set_column('A:A', 20)
-    for j in range(NH):
-        worksheet.write(j+2,0,df['NAME'][j])
-        for i in range(NT):
-            worksheet.write(j+2,i+1,hpgval[j][i])
-
-    worksheet = workbook.add_worksheet('qtur')
-    worksheet.set_column('A:A', 20)
-    for j in range(NH):
-        worksheet.write(j+2,0,df['NAME'][j])
-        for i in range(NT):
-            worksheet.write(j+2,i+1,hqval[j][i])
-
-    worksheet = workbook.add_worksheet('vol')
-    worksheet.set_column('A:A', 20)
-    for j in range(NH):
-        worksheet.write(j+2,0,df['NAME'][j])
-        for i in range(NT+1):
-            worksheet.write(j+2,i+1,hvolval[j][i])
-
-    worksheet = workbook.add_worksheet('vert')
-    worksheet.set_column('A:A', 20)
-    for j in range(NH):
-        worksheet.write(j+2,0,df['NAME'][j])
-        for i in range(NT):
-            worksheet.write(j+2,i+1,hSval[j][i])
-
-    df = pd.read_excel(path + 'termdata.xlsx')
-    NG = df.shape[0]
-    worksheet = workbook.add_worksheet('gen_term')
-    worksheet.set_column('A:A', 20)
-    for j in range(NG):
-        worksheet.write(j+2,0,'GT_' + str(df['NAME'][j]))
-        for i in range(NT):
-            worksheet.write(j+2,i+1,tpgval[j][i])
-
-    worksheet = workbook.add_worksheet('outras_infos')
-    worksheet.set_column('A:A', 20)
-    worksheet.write(1,0,'EXP_TYPE')
-    worksheet.write(1,1,name_exp.split("_")[0])
-    worksheet.write(2,0,'Total_GH')
-    worksheet.write(2,1,baseMVA*sum(hpgval))
-    worksheet.write(3,0,'Total_GT')
-    worksheet.write(3,1,baseMVA*sum(tpgval))
-    worksheet.write(4,0,'Fobj')
-    worksheet.write(4,1,model.objval)
-    worksheet.write(5,0,'Runtime (s)')
-    worksheet.write(5,1,model.Runtime)
-    worksheet.write(6,0,'Nbv')
-    worksheet.write(6,1,model.NumBinVars)
-    worksheet.write(7,0,'Ncons')
-    worksheet.write(7,1,model.NumConstrs)
-    worksheet.write(8,0,'gap (%)')
-    worksheet.write(8,1,round(model.MIPGAP*100,2))
-    worksheet.write(9,0,'Slacks rede')
-    worksheet.write(9,1,round(baseMVA*sum(nSlp),2)+round(baseMVA*sum(nSln),2))
-
-    workbook.close()
-
-
-def measure_fpherror(model,name_exp):
-    eps = 1e-3
-    name_exp = model._name_exp
-    def fph_N(V, Q, S):
-        GH = 0
-        for n in range(nmaq):
-            N = n + 1
-            if Q > qmax:
-                if (Q / N) > qmax + 0.0001 or (Q / N) < qmin - 0.0001:
-                    continue
-            else:
-                if Q < qmin:
-                    continue
-                else:
-                    N = 1
-            hb = F[0] + F[1] * V + F[2] * V ** 2 + F[3] * V ** 3 + F[4] * V ** 4 - (
-                    G[0] + G[1] * (Q + S) + G[2] * (Q + S) ** 2 + G[3] * (Q + S) ** 3 + G[4] * (Q + S) ** 4)
-            hl = hb*(1-hloss/100) if hloss_flag == 1 else hb - hloss
-            rend = I[0] + I[1]*(Q/N) + I[2]*hl + I[3]*(Q/N)*hl + I[4]*(Q/N)**2 + I[5]*hl**2
-            rend = min(max(rend, 0), 1)
-            GH = max(GH, 0.00981 * rend * hl * Q)
-        return GH
-
-    def find_optzones(id_plant):
-        nmaq = int(df['NMAQ'][id_plant])
-        qmax = df['QMAX'][id_plant]
-        qmin = df['QMIN'][id_plant]
-
-        opt_zones = array([[qmin, qmax]])
-        for i in range(2, nmaq + 1):
-            if i * qmin <= (i - 1) * qmax:
-                break
-            else:
-                opt_zones = append(opt_zones, array([[i * qmin, i * qmax]]), axis=0)
-        opt_zones[-1][1] = qmax * nmaq
-
-        return opt_zones
-
-    GT = loadtxt(save_path+'/GT')
-
-    df = pd.read_excel(path + 'hidrodata.xlsx')
-    GH = loadtxt(save_path+'/GH')
-    GH *= baseMVA
-    TURB = loadtxt(save_path+'/TURB')
-    VERT = loadtxt(save_path+'/VERT')
-    VOL = loadtxt(save_path+'/VOL')
-
-    NH = GH.shape[0]
-    NT = GH.shape[1]
-    GH_violado = zeros(GH.shape[0])
-    GH_erro = zeros(GH.shape[0])
-
-    for i in range(NH):
-        qmin = df['QMIN'][i]
-        qmax = df['QMAX'][i]
-        nmaq = int(df['NMAQ'][i])
-        F = zeros(5)
-        G = zeros(5)
-        I = zeros(6)
-        for j in range(5):
-            pos = 'F' + str(j)
-            F[j] = df[pos][i]
-            pos = 'G' + str(j)
-            G[j] = df[pos][i]
-            pos = 'I' + str(j)
-            I[j] = df[pos][i]
-        I[5] = df['I5'][i]
-        hloss = df['H0'][i]
-        hloss_flag = df['H1'][i]
-
-        zones = find_optzones(i)
-        for j in range(NT):
-            flag = 0
-            for k in range(zones.shape[0]):
-                if TURB[i][j] <= eps:
-                    flag = 1
-                    break
-                if TURB[i][j] >= zones[k][0] -eps and TURB[i][j] <= zones[k][1] + eps:
-                    flag = 1
-                    break
-            if flag == 0:
-                GH_violado[i] += GH[i][j]
-            else:
-                GH_erro[i] += abs(fph_N(VOL[i][j],TURB[i][j],VERT[i][j]) - GH[i][j])
-
-
-    workbook = xlsxwriter.Workbook(save_path + '\\uhe_results_' + name_exp + '.xlsx')
-    worksheet = workbook.add_worksheet('erros_usinas')
-
-    worksheet.set_column('A:A', 20)
-    bold = workbook.add_format({'bold': True})
-    for j in range(NH):
-        worksheet.write(j+2,0,df['NOME'][j])
-    worksheet.write('A2', 'UHE', bold)
-    worksheet.write(1,1,'Total GH(MW)')
-    for j in range(NH):
-        worksheet.write(j+2,1,sum(GH[j]))
-    worksheet.write(1,2,'GH vio(MW)')
-    for j in range(NH):
-        worksheet.write(j+2,2,GH_violado[j])
-    worksheet.write(1,3,'GH erro(MW)')
-    for j in range(NH):
-        worksheet.write(j+2,3,GH_erro[j])
-    worksheet.write(1,4,'GH vio(%)')
-    for j in range(NH):
-        worksheet.write(j+2,4,100*GH_violado[j]/sum(GH[j]) if sum(GH[j]) >= eps else ('Inf' if GH_violado[j] >= eps else 0) )
-    worksheet.write(1,5,'GH erro(%)')
-    for j in range(NH):
-        worksheet.write(j+2,5,100*GH_erro[j]/sum(GH[j]) if sum(GH[j]) >= eps else ('Inf' if GH_erro[j] >= eps else 0) )
-    worksheet.write(1,6,'GH/GHmax(%)U')
-    for j in range(NH):
-        worksheet.write(j+2,6,100*sum(GH[j])/(NT*df['PMAX'][j]))
-    worksheet.write(1,7,'GH/GHmax(%)S')
-    for j in range(NH):
-        worksheet.write(j+2,7,100*sum(GH[j])/(sum(GH)))
-    # worksheet.write(1,8,'erro-GH2')
-    # for j in range(nT):
-    #     worksheet.write(j+2,8,erro_gh[1,j])
-    #
-
-    worksheet = workbook.add_worksheet('outras_infos')
-    worksheet.set_column('A:A', 20)
-    worksheet.write(1,0,'EXP_TYPE')
-    worksheet.write(1,1,name_exp.split("_")[0])
-    worksheet.write(2,0,'gamma')
-    worksheet.write(2,1,int(name_exp.split("_")[1]))
-    worksheet.write(3,0,'afl')
-    worksheet.write(3,1,name_exp.split("_")[2])
-    worksheet.write(4,0,'Total_GH')
-    worksheet.write(4,1,sum(GH))
-    worksheet.write(5,0,'Total_GT')
-    worksheet.write(5,1,baseMVA*sum(GT))
-    worksheet.write(6,0,'Fobj')
-    worksheet.write(6,1,model.objval)
-    worksheet.write(7,0,'Runtime (s)')
-    worksheet.write(7,1,model.Runtime)
-    worksheet.write(8,0,'Nbv')
-    worksheet.write(8,1,model.NumBinVars)
-    worksheet.write(9,0,'Ncons')
-    worksheet.write(9,1,model.NumConstrs)
-    worksheet.write(10,0,'gap (%)')
-    worksheet.write(10,1,round(model.MIPGAP*100,2))
-
-    workbook.close()

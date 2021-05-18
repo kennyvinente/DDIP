@@ -12,6 +12,8 @@ import xlsxwriter
 from gurobipy import *
 from options import *
 
+import scipy.sparse as sp
+
 baseMVA = 100
 eps = 1e-4
 
@@ -106,7 +108,7 @@ def find_optzones(id_plant,df):
 
     return opt_zones
 
-def fph_model(model,nblocks):
+def fph_model(model,nblocks,MILP_LP):
     FPH_MODEL = 'CH'
 
     gh = model.addMVar((NH,nblocks), name='gh')
@@ -114,7 +116,10 @@ def fph_model(model,nblocks):
     turb = model.addMVar((NH,nblocks), name='turb')
     vert = model.addMVar((NH,nblocks), name='vert')
 
-    hu = model.addMVar((NH,nblocks),vtype='B', name='hon')
+    if MILP_LP:
+        hu = model.addMVar((NH,nblocks),vtype='B', name='hon')
+    else:
+        hu = model.addMVar((NH,nblocks),vtype='C', name='hon',ub=1)
     pvu = model.addMVar((NH,nblocks),name='pvu')
 
     for i in range(NH):
@@ -150,13 +155,18 @@ def fph_model(model,nblocks):
     model._turb = turb
     model._vert = vert
 
-def term_model(model,nblocks):
+def term_model(model,nblocks,MILP_LP):
 
     gt = model.addMVar((NG,nblocks),name="gt")
-    tv = model.addMVar((NG,nblocks),name="tstart", vtype='B')
-    tw = model.addMVar((NG,nblocks),name="tshut", vtype='B')
-    tu = model.addMVar((NG,nblocks),name="ton", vtype='B')
 
+    if MILP_LP:
+        tv = model.addMVar((NG,nblocks),name="tv", vtype='B')
+        tw = model.addMVar((NG,nblocks),name="tw", vtype='B')
+        tu = model.addMVar((NG,nblocks),name="tu", vtype='B')
+    else:
+        tv = model.addMVar((NG,nblocks),name="tv", vtype='C', ub=1)
+        tw = model.addMVar((NG,nblocks),name="tw", vtype='C', ub=1)
+        tu = model.addMVar((NG,nblocks),name="tu", vtype='C', ub=1)
     # gt, tv, tw, tu = {},{},{},{}
     for i in range(NG):
         model.addConstr(gt[i,:] <= tu[i,:]*df_term['PMAX'][i]/baseMVA)
@@ -174,27 +184,27 @@ def uct_model(model,svars,ite,nblocks,t0):
     tw = model._tw
     tu = model._tu
 
-    zu = model.addMVar(NG,name="zu")
-    zv = model.addMVar(NG,name="zv")
-    zw = model.addMVar(NG,name="zw")
+    aux_tu = model.addMVar(NG,name="aux_tu")
+    aux_tv = {}
+    aux_tw = {}
+    aux_gt = model.addMVar(NG,name="aux_gt")
+
+    model.addConstr(aux_tu == svars['tu'][ite][:,t0-1], name='c_tu')
+    model.addConstr(aux_gt == svars['gt'][ite][:,t0-1], name='c_gt')
 
 
-    model.addConstr(zu == svars['tu'][ite][:,t0-1], name='zu')
+    model.addConstr(tv[:,0]-tw[:,0] == tu[:,0] - aux_tu)
 
-    model.addConstr(tv[:,0]-tw[:,0] == tu[:,0] - zu)
+    # for blocks > 1
+    # for j in range(1,nblocks):
+    #     model.addConstr(tv[:,j]-tw[:,j] == tu[:,j] - tu[:,j-1])
 
-    for j in range(1,nblocks):
-        model.addConstr(tv[:,j]-tw[:,j] == tu[:,j] - tu[:,j-1])
 
     for i in range(NG):
-        if t0 < df_term['UPTIME'][i]:
-            model.addConstr(zv[i] == sum(svars['tv'][ite][i,1:t0-1]), name='zv[%d]'%i)
-        else:
-            model.addConstr(zv[i] == sum(svars['tv'][ite][i,t0+1-int(df_term['UPTIME'][i]):t0-1]), name='zv[%d]'%i)
+        aux_tv[i,t0] = model.addMVar(int(df_term['UPTIME'][i]-1), name='aux_tv[%d,%d]'%(i,t0), ub=1)
+        for l in range(df_term['UPTIME'][i]-1,0,-1):
+            model.addConstr(aux_tv[i,t0][l-1] == (svars['tv'][ite][i,l-df_term['UPTIME'][i]+t0] if l-df_term['UPTIME'][i]+t0 >= 0 else 0), name='c_tv[%d,%d]'%(i,l-1))
 
-    print('ajeitar esta parte aqui')
-
-    for i in range(NG):
         for j in range(t0,t0+nblocks):
             if df_term['TON'][i] > 0:
                 if j + df_term['TON'][i] <= df_term['UPTIME'][i]:
@@ -202,56 +212,48 @@ def uct_model(model,svars,ite,nblocks,t0):
                     model.addConstr(tv[i,j-t0] == 0)
                     model.addConstr(tw[i,j-t0] == 0)
                 else:
-                    if j < df_term['UPTIME'][i]:
-                        model.addConstr(zv[i] + tv[i,0:j+1].sum() <= tu[i,j])
-                    else:
-                        pass
+                    model.addConstr(aux_tv[i,t0].sum() + tv[i,j-t0] <= tu[i,j-t0])
 
-        # for j in range(NT):
-        #     if df_term['TON'][i] > 0:
-        #         if (j+1) + df_term['TON'][i] <= df_term['UPTIME'][i]:
-        #             model.addConstr(tu[i,j] == 1)
-        #             model.addConstr(tv[i,j] == 0)
-        #             model.addConstr(tw[i,j] == 0)
-        #         else:
-        #             if j+1 < df_term['UPTIME'][i]:
-        #                 model.addConstr(tv[i,0:j+1].sum() <= tu[i,j])
-        #             else:
-        #                 model.addConstr(tv[i,j+1 - int(df_term['UPTIME'][i]):j+1].sum() <= tu[i,j])
-        #     else:
-        #         if (j + 1) < df_term['UPTIME'][i]:
-        #             model.addConstr(tv[i,0:j+1] <= tu[i,j])
-        #         else:
-        #             model.addConstr(tv[i,j+1 - int(df_term['UPTIME'][i]):j+1]  <= tu[i,j])
-        #
-        #     if df_term['TON'][i] < 0:
-        #         if (j+1) - df_term['TON'][i] <= df_term['DOWNTIME'][i]:
-        #             model.addConstr(tu[i,j] == 0)
-        #             model.addConstr(tv[i,j] == 0)
-        #             model.addConstr(tw[i,j] == 0)
-        #         elif ((j + 1) -df_term['TON'][i] >= df_term['DOWNTIME'][i]) and ((j + 1) < df_term['DOWNTIME'][i]):
-        #             model.addConstr(tw[i,0:j+1].sum() <= 1 - tu[i,j])
-        #         else:
-        #             model.addConstr(tw[i,j + 1 - int(df_term['DOWNTIME'][i]):j+1].sum()  <= 1 - tu[i,j])
-        #     else:
-        #         if (j + 1) < df_term['DOWNTIME'][i]:
-        #             model.addConstr(tw[i, 0:j+1].sum() <= 1 - tu[i, j])
-        #         else:
-        #             model.addConstr(tw[i, j + 1 - int(df_term['DOWNTIME'][i]):j+1].sum() <= 1 - tu[i,j])
-        #
-        # if df_term['TON'][i] > 0:
-        #     model.addConstr(gt[i,0] <= min(df_term['RAMPUP'][i],1000)/baseMVA + df_term['P0'][i]/baseMVA)
-        # else:
-        #     model.addConstr(gt[i,0] <= df_term['PMIN'][i]*tv[i,0]/baseMVA)
-        # model.addConstr(gt[i,1:] - gt[i,0:NT-1] <= min(df_term['RAMPUP'][i],1000)*tu[i,0:NT-1]/baseMVA + df_term['PMIN'][i]*tv[i,1:]/baseMVA)
-        #
-        #
-        # if df_term['TON'][i] > 0:
-        #     model.addConstr(df_term['P0'][i]/baseMVA - gt[i, 0] <= min(df_term['RAMPDOWN'][i],1000)/baseMVA * tu[i, 0] + df_term['PMIN'][i] * tw[i, 0]/baseMVA)
-        # else:
-        #     model.addConstr(-gt[i, 0] <= min(df_term['RAMPDOWN'][i],1000) * tu[i, 0]/baseMVA + df_term['PMIN'][i] * tw[i, 0]/baseMVA)
-        #
-        # model.addConstr(gt[i, 0:NT-1] - gt[i, 1:] <= min(df_term['RAMPDOWN'][i],1000) * tu[i, 1:]/baseMVA + df_term['PMIN'][i] * tw[i, 1:]/baseMVA)
+            else:
+                model.addConstr(aux_tv[i,t0].sum() + tv[i,j-t0] <= tu[i,j-t0])
+
+        aux_tw[i,t0] = model.addMVar(int(df_term['DOWNTIME'][i]-1), name='aux_tw[%d,%d]'%(i,t0), ub=1)
+        for l in range(df_term['DOWNTIME'][i]-1,0,-1):
+            model.addConstr(aux_tw[i,t0][l-1] == (svars['tw'][ite][i,l-df_term['DOWNTIME'][i]+t0] if l-df_term['DOWNTIME'][i]+t0 >= 0 else 0), name='c_tw[%d,%d]'%(i,l-1))
+
+        for j in range(t0,t0+nblocks):
+            if df_term['TON'][i] < 0:
+                if j + df_term['TON'][i] <= df_term['DOWNTIME'][i]:
+                    model.addConstr(tu[i,j-t0] == 0)
+                    model.addConstr(tv[i,j-t0] == 0)
+                    model.addConstr(tw[i,j-t0] == 0)
+                else:
+                    model.addConstr(aux_tw[i,t0].sum() + tw[i,j-t0] <= 1 - tu[i,j-t0])
+
+            else:
+                model.addConstr(aux_tw[i,t0].sum() + tw[i,j-t0] <= 1 - tu[i,j-t0])
+
+
+        if t0 == 1:
+            if df_term['TON'][i] > 0:
+                model.addConstr(gt[i,0] <= min(df_term['RAMPUP'][i],1000)/baseMVA + df_term['P0'][i]/baseMVA)
+            else:
+                model.addConstr(gt[i,0] <= df_term['PMIN'][i]*tv[i,0]/baseMVA)
+        else:
+            model.addConstr(gt[i,:] - aux_gt[i] <= min(df_term['RAMPUP'][i],1000)*aux_tu[i]/baseMVA + df_term['PMIN'][i]*tv[i,:]/baseMVA)
+
+        if t0 == 1:
+            if df_term['TON'][i] > 0:
+                model.addConstr(df_term['P0'][i]/baseMVA - gt[i,0] <= min(df_term['RAMPDOWN'][i],1000)/baseMVA*tu[i,0] + df_term['PMIN'][i]*tw[i,0]/baseMVA)
+            else:
+                model.addConstr(-gt[i,0] <= min(df_term['RAMPDOWN'][i],1000)*tu[i,0]/baseMVA + df_term['PMIN'][i]*tw[i,0]/baseMVA)
+        else:
+            model.addConstr(aux_gt[i] - gt[i,:] <= min(df_term['RAMPDOWN'][i],1000)*tu[i,:]/baseMVA + df_term['PMIN'][i]*tw[i,:]/baseMVA)
+
+    model._aux_tv = aux_tv
+    model._aux_tw = aux_tw
+    model._aux_tu = aux_tu
+    model._aux_gt = aux_gt
 
 
 def network_model(model,nblocks,t0):
@@ -330,60 +332,78 @@ def network_model(model,nblocks,t0):
     model._nSlp = nSlp
     model._nSln = nSln
 
-def reserv_model(model,NT):
+def reserv_model(model,svars,ite,nblocks,t0,NT):
     CTE = 3600*1e-6
     vmeta = 0 #% de esvaziamento aceitavel nos reservatorios de acumulacao
-    alpha = model.addVar(vtype='C', name='alpha')
+    # alpha = model.addVar(vtype='C', name='alpha')
 
     tviag = df_hidr['TRAVELTIME'].to_numpy()
 
     afl = df_hidr['Y0'].to_numpy()
 
-    # # FCF
-    # for l in range(fcf_coef.shape[0]):
-    #     model.addConstr(alpha + quicksum(fcf_coef[l][i]*hvol[i,NT-1] for i in range(NH)) >= fcf_val[l], name='eq_FCF')
+    nwbp = model.addMVar((NH, nblocks), vtype='C', name='nwb+', lb=0, ub=10000)
+    nwbn = model.addMVar((NH, nblocks), vtype='C', name='nwb-', lb=0, ub=10000)
 
-    # for ind_h in range(NH):
-    #     if hidrogen[ind_h][H_TYPE] == 1:
-    #         for j in range(NT):
-    #             model.addConstr(hS[ind_h,j] == 0)
 
+    aux_vol = model.addMVar(NH,name="aux_vol")
+    aux_turb = {}
+    aux_vert = {}
+    model.addConstr(aux_vol == svars['vol'][ite][:,t0-1], name='c_hvol')
 
     # # VOL META
 
-    for i in range(NH):
-        if df_hidr['TYPE'][i] == 1:
-            model.addConstr(model._vol[i,NT-1] >= (1-vmeta/100)*(0.01*df_hidr['V0'][i]*(df_hidr['VMAX'][i]-df_hidr['VMIN'][i])+df_hidr['VMIN'][i]), name='vol_target_'+df_hidr['NAME'][i])
+    if t0 == NT:
+        for i in range(NH):
+            if df_hidr['TYPE'][i] == 1:
+                model.addConstr(model._vol[i,:] >= (1-vmeta/100)*(0.01*df_hidr['V0'][i]*(df_hidr['VMAX'][i]-df_hidr['VMIN'][i])+df_hidr['VMIN'][i]), name='vol_target_'+df_hidr['NAME'][i])
 
 
-    # water balance
+    # # water balance
     for i in range(NH):
+        aux_turb[i,t0] = model.addMVar(int(df_hidr['TRAVELTIME'][i]), name='aux_turb[%d,%d]'%(i,t0), ub=df_hidr['QMAX'][i]*df_hidr['NGU'][i])
+        aux_vert[i,t0] = model.addMVar(int(df_hidr['TRAVELTIME'][i]), name='aux_vert[%d,%d]'%(i,t0), ub= df_hidr['SMAX'][i])
+        for l in range(int(df_hidr['TRAVELTIME'][i]),0,-1):
+            model.addConstr(aux_turb[i,t0][l-1] == (svars['turb'][ite][i,l-df_hidr['TRAVELTIME'][i]+t0-1] if l-df_hidr['TRAVELTIME'][i]+t0-1 >= 0 else 0), name='c_turb[%d,%d]'%(i,l-1))
+            model.addConstr(aux_vert[i,t0][l-1] == (svars['vert'][ite][i,l-df_hidr['TRAVELTIME'][i]+t0-1] if l-df_hidr['TRAVELTIME'][i]+t0-1 >= 0 else 0), name='c_vert[%d,%d]'%(i,l-1))
+
+    for i in range(NH):
+        V0 = 0.01*df_hidr['V0'][i]*(df_hidr['VMAX'][i]-df_hidr['VMIN'][i])+df_hidr['VMIN'][i]
         temp = find(df_hidr['DOWNSTREAM'].to_numpy().astype(int) == i+1)
-        if temp.shape[0] > 0:
-            for j in range(NT):
-                if j == 0:
-                    model.addConstr(model._vol[i,j] == 0.01*df_hidr['V0'][i]*(df_hidr['VMAX'][i]-df_hidr['VMIN'][i])+df_hidr['VMIN'][i]-
-                                    CTE*(model._turb[i,j]+model._vert[i,j]-afl[i]-sum(df_hidr['Q0'][list(temp)])-sum(df_hidr['S0'][list(temp)])))
-                else:
-                    xx1 = find(tviag[list(temp)] >= j+1)
-                    if xx1.shape[0] > 0:
-                        xx2 = 0
-                        for k in range(temp.shape[0]):
-                            if tviag[temp[k]] >= j + 1:
-                                xx2 += df_hidr['Q0'][temp[k]] + df_hidr['S0'][temp[k]]
-                            else:
-                                xx2 += model._turb[temp[k],j-tviag[temp[k]]] + model._vert[temp[k],j-tviag[temp[k]]]
-                        model.addConstr(model._vol[i,j] == model._vol[i,j-1]-CTE*(model._turb[i,j]+model._vert[i,j]-afl[i]-xx2))
-                    else:
-                        xx2 = 0
-                        for k in range(temp.shape[0]):
-                            xx2 += model._turb[temp[k],j-tviag[temp[k]]] + model._vert[temp[k],j-tviag[temp[k]]]
-                        model.addConstr(model._vol[i,j] == model._vol[i,j-1]- CTE*(model._turb[i,j]+model._vert[i,j]-afl[i]-xx2))
-        else:
-            model.addConstr(model._vol[i,0] == 0.01*df_hidr['V0'][i]*(df_hidr['VMAX'][i]-df_hidr['VMIN'][i])+df_hidr['VMIN'][i] - CTE*(model._turb[i,0] + model._vert[i,0] - afl[i]))
-            model.addConstr(model._vol[i,1:] == model._vol[i,0:NT-1] - CTE*(model._turb[i,1:] + model._vert[i,1:] - afl[i]))
 
-    model._alpha = alpha
+        if temp.shape[0] > 0:
+            if t0 == 1:
+                model.addConstr(model._vol[i,:] + nwbp[i,0] - nwbn[i,0] == V0 - CTE*(model._turb[i,:]+model._vert[i,:]-afl[i]-sum(df_hidr['Q0'][list(temp)])-sum(df_hidr['S0'][list(temp)])))
+            else:
+                xx1 = find(tviag[list(temp)] >= t0)
+                if xx1.shape[0] > 0:
+                    xx2 = 0
+                    for k in range(temp.shape[0]):
+                        if tviag[temp[k]] >= t0:
+                            xx2 += df_hidr['Q0'][temp[k]] + df_hidr['S0'][temp[k]]
+                        else:
+                            xx2 += aux_turb[temp[k],t0][(df_hidr['TRAVELTIME'][k]-1)-(tviag[temp[k]]-1)] + aux_vert[temp[k],t0][(df_hidr['TRAVELTIME'][k]-1)-(tviag[temp[k]]-1)]
+                    model.addConstr(model._vol[i,:] + nwbp[i,0] - nwbn[i,0] == aux_vol[i]-CTE*(model._turb[i,:] + model._vert[i,:] - afl[i]-xx2))
+                else:
+                    xx2 = 0
+                    for k in range(temp.shape[0]):
+                        if df_hidr['TRAVELTIME'][temp[k]] > 0: #esta é a parte com problema
+                            xx2 += aux_turb[temp[k],t0][(df_hidr['TRAVELTIME'][temp[k]]-1)-(tviag[temp[k]]-1)] + aux_vert[temp[k],t0][(df_hidr['TRAVELTIME'][temp[k]]-1)-(tviag[temp[k]]-1)]
+                        else:
+                            xx2 += model._turb[temp[k],:] + model._vert[temp[k],:]
+                    model.addConstr(model._vol[i,:] + nwbp[i,0] - nwbn[i,0] == aux_vol[i]- CTE*(model._turb[i,:] + model._vert[i,:] - afl[i]-xx2))
+
+        else:
+            if t0 == 1:
+                model.addConstr(model._vol[i,:] + nwbp[i,0] - nwbn[i,0] == V0 - CTE*(model._turb[i,:] + model._vert[i,:] - afl[i]))
+            else:
+                model.addConstr(model._vol[i,:] + nwbp[i,0] - nwbn[i,0] == aux_vol[i] - CTE*(model._turb[i,:] + model._vert[i,:] - afl[i]))
+
+    # model._alpha = alpha
+    model._nwbp = nwbp
+    model._nwbn = nwbn
+    model._aux_turb = aux_turb
+    model._aux_vert = aux_vert
+
 
 def fobj(model,nblocks):
 
@@ -400,6 +420,9 @@ def fobj(model,nblocks):
         f1 += baseMVA*cdef*model._nSlp[i,:].sum()
         f1 += baseMVA*cdef*model._nSln[i,:].sum()
 
+    for i in range(NH):
+        f1 += baseMVA*cdef*model._nwbp[i,:].sum()
+        f1 += baseMVA*cdef*model._nwbn[i,:].sum()
 
     return f1
 
