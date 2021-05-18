@@ -1,0 +1,15 @@
+\ Model _copy
+\ LP format - for model browsing. Use MPS format to capture full model detail.
+Minimize
+ 
+Subject To
+ zu[20]: zu[20] = 0
+ zv[20]: zv[20] = 1
+ R454: tstart[20] - tshut[20] - ton[20] + zu[20] = 0
+ R494: tstart[20] - ton[20] + zv[20] <= 0
+Bounds
+ zu[20] free
+ zv[20] free
+Binaries
+ tstart[20] tshut[20] ton[20]
+End
