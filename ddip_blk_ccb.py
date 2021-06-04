@@ -1,11 +1,10 @@
 #### DDIP HTUC with block aggregation
 
-#target:
 
 from ddip_formulations_blk import *
 
 NT = 24
-nblocks = 12
+nblocks = 4
 
 MIPGap = True
 
@@ -263,7 +262,7 @@ for period in range(NT-nblocks+1,0,-nblocks):
 # # # # # Backward pass end
 
 
-print("Target: %.4f" %(513950.03478245786))
+print("Target: %.4f" %(513147.1132905414))
 
 LB = m_b[1].objval
 LB_Vector = append(LB_Vector,LB)
@@ -276,13 +275,18 @@ print("Iteration: %d, Current UB = %.2f, Best UB = %.2f, Current LB = %.2f, cur_
 
 # Backward sweep for first iteration ended
 
-maxiter = 100; # Maximum number of DDIP iterations
-tolerance = 1e-3; # Percentage tolerance stopping criteria
+maxiter = 20; # Maximum number of DDIP iterations
+tolerance = 1e-1; # Percentage tolerance stopping criteria
 
 
 #################  Iterations 2,3,... start  ###################
 while best_gap >= tolerance and ite < maxiter:
     ite += 1; # Iteration number
+
+    # if ite > 4:
+    #     if abs(best_gap_Vector[ite-1] - best_gap_Vector[ite-5]) < tolerance:
+    #         break
+
 
     svars['vol'][ite] = zeros((NH,NT+1))
     svars['turb'][ite] = zeros((NH,NT+1))
@@ -613,7 +617,7 @@ fig_title = 'MIPGAP: ' + str(1) + '%; Runtime: ' + str(round(tet,2)) + 's; CCB; 
 t = linspace(0,LB_Vector.shape[0]-1,LB_Vector.shape[0])
 plt.plot(t,best_UB_Vector,'g',label='UB')
 plt.plot(t,LB_Vector,'r',label='LB')
-plt.plot(t,ones(LB_Vector.shape[0])*513950.03,'k-.')
+plt.plot(t,ones(LB_Vector.shape[0])*513147.11,'k-.')
 plt.xlabel('ite')
 plt.ylabel('Cost')
 plt.ylim([0,8*1e5])
@@ -629,7 +633,7 @@ figure.set_size_inches(8, 6)
 
 plt.show()
 
-plt.savefig('figures/fig16.png', dpi=100)
+plt.savefig('figures/fig47.png', dpi=100)
 plt.close()
 
 

@@ -1,6 +1,6 @@
 #### DDIP HTUC with no block aggregation
 
-#target: 495185.6324213365
+#target: 434359.0183932068
 
 from ddip_formulations import *
 
@@ -243,8 +243,8 @@ print("Iteration: %d, Current UB = %.2f, Best UB = %.2f, Current LB = %.2f, cur_
 
 # Backward sweep for first iteration ended
 
-maxiter = 255; # Maximum number of DDIP iterations
-tolerance = 0.01; # Percentage tolerance stopping criteria
+maxiter = 250; # Maximum number of DDIP iterations
+tolerance = 1e-5; # Percentage tolerance stopping criteria
 
 
 #################  Iterations 2,3,... start  ###################

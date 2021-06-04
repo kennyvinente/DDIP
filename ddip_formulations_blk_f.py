@@ -381,7 +381,7 @@ def reserv_model(model,svars,ite,nblocks,t0,NT):
     model._aux_vert = aux_vert
 
 
-def fobj(model,nblocks):
+def fobj(model):
 
     cdef = round(3*max(df_term['COST_L'].to_numpy()),2)
 

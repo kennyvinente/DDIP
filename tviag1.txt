@@ -1,0 +1,16 @@
+
+wb_PROMISSAO4: - vol[0,4] + vol[0,5] + 0.0036 turb[0,5] - 0.0036 turb[14,4] + 0.0036 vert[0,5] - 0.0036 vert[14,4] = 4.6728
+
+wb_N._AVANHANDAVA4: - vol[2,4] + vol[2,5] - 0.0036 turb[0,4] + 0.0036 turb[2,5] - 0.0036 vert[0,4] + 0.0036 vert[2,5] = 4.9176
+
+wb_JUPIA4: - vol[3,4] + vol[3,5] - 0.0036 turb[2,2] + 0.0036 turb[3,5] - 0.0036 vert[2,2] + 0.0036 vert[3,5] = 1.9548
+
+wb_BARIRI4: - vol[4,4] + vol[4,5] - 0.0036 turb[1,3] + 0.0036 turb[4,5] - 0.0036 vert[1,3] + 0.0036 vert[4,5] = 3.366
+
+wb_MONJOLINHO4: - vol[5,4] + vol[5,5] + 0.0036 turb[5,5] - 0.0036 turb[9,4] + 0.0036 vert[5,5] - 0.0036 vert[9,4] = 0.7596
+
+wb_PASSO_SAO_JOAO4: - vol[8,4] + vol[8,5] - 0.0036 turb[7,5] + 0.0036 turb[8,5] - 0.0036 vert[7,5] + 0.0036 vert[8,5] = 1.5876
+
+wb_FOZ_DO_CHAPECO4: - vol[13,4] + vol[13,5] - 0.0036 turb[5,4] - 0.0036 turb[12,4] + 0.0036 turb[13,5] - 0.0036 vert[5,4] - 0.0036 vert[12,4] + 0.0036 vert[13,5] = 7.1388
+
+wb_IBITINGA4: - vol[14,4] + vol[14,5] - 0.0036 turb[4,4] + 0.0036 turb[14,5] - 0.0036 vert[4,4] + 0.0036 vert[14,5] = 4.0536

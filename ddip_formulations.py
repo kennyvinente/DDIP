@@ -221,17 +221,17 @@ def uct_model(model,svars,ite,nblocks,t0):
         for l in range(df_term['DOWNTIME'][i]-1,0,-1):
             model.addConstr(aux_tw[i,t0][l-1] == (svars['tw'][ite][i,l-df_term['DOWNTIME'][i]+t0] if l-df_term['DOWNTIME'][i]+t0 >= 0 else 0), name='c_tw[%d,%d]'%(i,l-1))
 
-        for j in range(t0,t0+nblocks):
-            if df_term['TON'][i] < 0:
-                if j + df_term['TON'][i] <= df_term['DOWNTIME'][i]:
-                    model.addConstr(tu[i,j-t0] == 0)
-                    model.addConstr(tv[i,j-t0] == 0)
-                    model.addConstr(tw[i,j-t0] == 0)
-                else:
-                    model.addConstr(aux_tw[i,t0].sum() + tw[i,j-t0] <= 1 - tu[i,j-t0])
-
-            else:
-                model.addConstr(aux_tw[i,t0].sum() + tw[i,j-t0] <= 1 - tu[i,j-t0])
+        # for j in range(t0,t0+nblocks):
+        #     if df_term['TON'][i] < 0:
+        #         if j + df_term['TON'][i] <= df_term['DOWNTIME'][i]:
+        #             model.addConstr(tu[i,j-t0] == 0)
+        #             model.addConstr(tv[i,j-t0] == 0)
+        #             model.addConstr(tw[i,j-t0] == 0)
+        #         else:
+        #             model.addConstr(aux_tw[i,t0].sum() + tw[i,j-t0] <= 1 - tu[i,j-t0])
+        #
+        #     else:
+        #         model.addConstr(aux_tw[i,t0].sum() + tw[i,j-t0] <= 1 - tu[i,j-t0])
 
 
         if t0 == 1:
@@ -352,10 +352,10 @@ def reserv_model(model,svars,ite,nblocks,t0,NT):
 
     # # VOL META
 
-    if t0 == NT:
-        for i in range(NH):
-            if df_hidr['TYPE'][i] == 1:
-                model.addConstr(model._vol[i,:] >= (1-vmeta/100)*(0.01*df_hidr['V0'][i]*(df_hidr['VMAX'][i]-df_hidr['VMIN'][i])+df_hidr['VMIN'][i]), name='vol_target_'+df_hidr['NAME'][i])
+    # if t0 == NT:
+    #     for i in range(NH):
+    #         if df_hidr['TYPE'][i] == 1:
+    #             model.addConstr(model._vol[i,:] >= (1-vmeta/100)*(0.01*df_hidr['V0'][i]*(df_hidr['VMAX'][i]-df_hidr['VMIN'][i])+df_hidr['VMIN'][i]), name='vol_target_'+df_hidr['NAME'][i])
 
 
     # # water balance
@@ -365,38 +365,38 @@ def reserv_model(model,svars,ite,nblocks,t0,NT):
         for l in range(int(df_hidr['TRAVELTIME'][i]),0,-1):
             model.addConstr(aux_turb[i,t0][l-1] == (svars['turb'][ite][i,l-df_hidr['TRAVELTIME'][i]+t0-1] if l-df_hidr['TRAVELTIME'][i]+t0-1 >= 0 else 0), name='c_turb[%d,%d]'%(i,l-1))
             model.addConstr(aux_vert[i,t0][l-1] == (svars['vert'][ite][i,l-df_hidr['TRAVELTIME'][i]+t0-1] if l-df_hidr['TRAVELTIME'][i]+t0-1 >= 0 else 0), name='c_vert[%d,%d]'%(i,l-1))
-
-    for i in range(NH):
-        V0 = 0.01*df_hidr['V0'][i]*(df_hidr['VMAX'][i]-df_hidr['VMIN'][i])+df_hidr['VMIN'][i]
-        temp = find(df_hidr['DOWNSTREAM'].to_numpy().astype(int) == i+1)
-
-        if temp.shape[0] > 0:
-            if t0 == 1:
-                model.addConstr(model._vol[i,:] + nwbp[i,0] - nwbn[i,0] == V0 - CTE*(model._turb[i,:]+model._vert[i,:]-afl[i]-sum(df_hidr['Q0'][list(temp)])-sum(df_hidr['S0'][list(temp)])))
-            else:
-                xx1 = find(tviag[list(temp)] >= t0)
-                if xx1.shape[0] > 0:
-                    xx2 = 0
-                    for k in range(temp.shape[0]):
-                        if tviag[temp[k]] >= t0:
-                            xx2 += df_hidr['Q0'][temp[k]] + df_hidr['S0'][temp[k]]
-                        else:
-                            xx2 += aux_turb[temp[k],t0][(df_hidr['TRAVELTIME'][k]-1)-(tviag[temp[k]]-1)] + aux_vert[temp[k],t0][(df_hidr['TRAVELTIME'][k]-1)-(tviag[temp[k]]-1)]
-                    model.addConstr(model._vol[i,:] + nwbp[i,0] - nwbn[i,0] == aux_vol[i]-CTE*(model._turb[i,:] + model._vert[i,:] - afl[i]-xx2))
-                else:
-                    xx2 = 0
-                    for k in range(temp.shape[0]):
-                        if df_hidr['TRAVELTIME'][temp[k]] > 0: #esta é a parte com problema
-                            xx2 += aux_turb[temp[k],t0][(df_hidr['TRAVELTIME'][temp[k]]-1)-(tviag[temp[k]]-1)] + aux_vert[temp[k],t0][(df_hidr['TRAVELTIME'][temp[k]]-1)-(tviag[temp[k]]-1)]
-                        else:
-                            xx2 += model._turb[temp[k],:] + model._vert[temp[k],:]
-                    model.addConstr(model._vol[i,:] + nwbp[i,0] - nwbn[i,0] == aux_vol[i]- CTE*(model._turb[i,:] + model._vert[i,:] - afl[i]-xx2))
-
-        else:
-            if t0 == 1:
-                model.addConstr(model._vol[i,:] + nwbp[i,0] - nwbn[i,0] == V0 - CTE*(model._turb[i,:] + model._vert[i,:] - afl[i]))
-            else:
-                model.addConstr(model._vol[i,:] + nwbp[i,0] - nwbn[i,0] == aux_vol[i] - CTE*(model._turb[i,:] + model._vert[i,:] - afl[i]))
+    #
+    # for i in range(NH):
+    #     V0 = 0.01*df_hidr['V0'][i]*(df_hidr['VMAX'][i]-df_hidr['VMIN'][i])+df_hidr['VMIN'][i]
+    #     temp = find(df_hidr['DOWNSTREAM'].to_numpy().astype(int) == i+1)
+    #
+    #     if temp.shape[0] > 0:
+    #         if t0 == 1:
+    #             model.addConstr(model._vol[i,:] + nwbp[i,0] - nwbn[i,0] == V0 - CTE*(model._turb[i,:]+model._vert[i,:]-afl[i]-sum(df_hidr['Q0'][list(temp)])-sum(df_hidr['S0'][list(temp)])))
+    #         else:
+    #             xx1 = find(tviag[list(temp)] >= t0)
+    #             if xx1.shape[0] > 0:
+    #                 xx2 = 0
+    #                 for k in range(temp.shape[0]):
+    #                     if tviag[temp[k]] >= t0:
+    #                         xx2 += df_hidr['Q0'][temp[k]] + df_hidr['S0'][temp[k]]
+    #                     else:
+    #                         xx2 += aux_turb[temp[k],t0][(df_hidr['TRAVELTIME'][k]-1)-(tviag[temp[k]]-1)] + aux_vert[temp[k],t0][(df_hidr['TRAVELTIME'][k]-1)-(tviag[temp[k]]-1)]
+    #                 model.addConstr(model._vol[i,:] + nwbp[i,0] - nwbn[i,0] == aux_vol[i]-CTE*(model._turb[i,:] + model._vert[i,:] - afl[i]-xx2))
+    #             else:
+    #                 xx2 = 0
+    #                 for k in range(temp.shape[0]):
+    #                     if df_hidr['TRAVELTIME'][temp[k]] > 0: #esta é a parte com problema
+    #                         xx2 += aux_turb[temp[k],t0][(df_hidr['TRAVELTIME'][temp[k]]-1)-(tviag[temp[k]]-1)] + aux_vert[temp[k],t0][(df_hidr['TRAVELTIME'][temp[k]]-1)-(tviag[temp[k]]-1)]
+    #                     else:
+    #                         xx2 += model._turb[temp[k],:] + model._vert[temp[k],:]
+    #                 model.addConstr(model._vol[i,:] + nwbp[i,0] - nwbn[i,0] == aux_vol[i]- CTE*(model._turb[i,:] + model._vert[i,:] - afl[i]-xx2))
+    #
+    #     else:
+    #         if t0 == 1:
+    #             model.addConstr(model._vol[i,:] + nwbp[i,0] - nwbn[i,0] == V0 - CTE*(model._turb[i,:] + model._vert[i,:] - afl[i]))
+    #         else:
+    #             model.addConstr(model._vol[i,:] + nwbp[i,0] - nwbn[i,0] == aux_vol[i] - CTE*(model._turb[i,:] + model._vert[i,:] - afl[i]))
 
     # model._alpha = alpha
     model._nwbp = nwbp

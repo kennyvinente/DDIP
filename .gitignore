@@ -172,3 +172,15 @@ dmypy.json
 /teste_py.ilp
 /test_1.py
 /test_2.py
+*.png
+tviag1.txt
+temp111.py
+ex.py
+ddip_formulations_blk.py
+ddip_1blk_ccb.py
+ddip_blk_cab.py
+ddip_blk_ccb.py
+ddip_blk_ccb_f.py
+ddip_ex5.py
+ddip_formulations.py
+ddip_blk_cab.py

@@ -1,9 +1,6 @@
 
 from formulations import *
 
-
-# if __name__ =='__main__':
-
 NT = 24
 FPH_MODEL = 'CH'
 name_exp = FPH_MODEL
@@ -21,28 +18,24 @@ term_model(model,NT)
 uct_model(model, NT)
 network_model(model,NT)
 reserv_model(model, NT)
-# uch_model(m, NT)
 fobj(model,NT)
 
 print('Elapsed time for building model: %.2f seconds\n'%(time.time() - et))
-model.write('teste_new.lp')
-#
-# model.Params.NonConvex = 2
-#
-# model.optimize()
-#
-# print(model.objval)
-# print(model.Runtime)
-# print(model.MIPGap*100)
+model.write('model_or.lp')
+
+model.Params.NonConvex = 2
+
+model.optimize()
+
+print("Fobj: %.2f\n"%model.objval)
+print("Runtime: %.2f\n"%model.Runtime)
+print("MIPGap: %.2f\n"%float(model.MIPGap*100))
 
 
-p = model.relax()
-p.update()
-# p.write('teste_new.lp')
-p.optimize()
-print(p.objval)
+# p = model.relax()
+# p.update()
+# # p.write('model_or.lp')
+# p.optimize()
+# print("Fobj: %.2f\n"%p.objval)
+# print("Runtime: %.2f\n"%p.Runtime)
 
-
-# if model.Status == GRB.OPTIMAL:
-#     save_results(model, NT, name_exp)
-#     # measure_fpherror(model, name_exp)
